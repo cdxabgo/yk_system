@@ -17,4 +17,6 @@ public interface EmployeeDiseaseRelationMapper {
     int deleteById(@Param("id") Long id);
 
     int deleteByEmployeeId(@Param("employeeId") Long employeeId);
+
+    int deleteByDiseaseId(@Param("diseaseId") Long diseaseId);
 }
