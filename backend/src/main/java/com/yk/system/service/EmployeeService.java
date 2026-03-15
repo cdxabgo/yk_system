@@ -16,9 +16,9 @@ public class EmployeeService {
     @Autowired
     private EmployeeMapper employeeMapper;
 
-    public PageResult<Employee> list(int page, int size, String name, String department, String empNo) {
+    public PageResult<Employee> list(int page, int size, String name, String job) {
         PageHelper.startPage(page, size);
-        List<Employee> list = employeeMapper.list(name, department, empNo);
+        List<Employee> list = employeeMapper.list(name, job);
         PageInfo<Employee> pageInfo = new PageInfo<>(list);
         return new PageResult<>(pageInfo.getTotal(), pageInfo.getList());
     }

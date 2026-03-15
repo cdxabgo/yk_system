@@ -19,9 +19,8 @@ public class EmployeeController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) String department,
-            @RequestParam(required = false) String empNo) {
-        return Result.success(employeeService.list(page, size, name, department, empNo));
+            @RequestParam(required = false) String job) {
+        return Result.success(employeeService.list(page, size, name, job));
     }
 
     @GetMapping("/{id}")

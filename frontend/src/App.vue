@@ -1,8 +1,13 @@
 <template>
-  <el-container class="layout-container">
+  <!-- 登录页面不显示导航栏 -->
+  <router-view v-if="isLoginPage" />
+
+  <!-- 主布局 -->
+  <el-container v-else class="layout-container">
     <el-aside width="220px" class="sidebar">
       <div class="logo">
-        <span>职工健康监测系统</span>
+        <el-icon size="20" style="margin-right:6px"><Monitor /></el-icon>
+        <span>井下心率监测系统</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -20,19 +25,25 @@
           <span>疾病管理</span>
         </el-menu-item>
         <el-menu-item index="/heartRate">
-          <el-icon><Monitor /></el-icon>
+          <el-icon><Odometer /></el-icon>
           <span>心率管理</span>
         </el-menu-item>
-        <el-menu-item index="/duty">
+        <el-menu-item index="/monitor">
           <el-icon><DataAnalysis /></el-icon>
-          <span>班中职工查询</span>
+          <span>班中职工监控</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
 
     <el-container>
       <el-header class="header">
-        <span class="header-title">职工健康监测管理平台</span>
+        <span class="header-title">井下职工心率实时监测系统</span>
+        <div class="header-right">
+          <el-icon style="margin-right:4px"><Avatar /></el-icon>
+          <span class="username">{{ userInfo?.realName || userInfo?.username }}</span>
+          <el-divider direction="vertical" />
+          <el-button link type="primary" @click="handleLogout">退出登录</el-button>
+        </div>
       </el-header>
       <el-main class="main-content">
         <router-view />
@@ -42,12 +53,35 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { User, Monitor, DataAnalysis, FirstAidKit } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { User, Monitor, DataAnalysis, FirstAidKit, Odometer, Avatar } from '@element-plus/icons-vue'
+import { authApi } from './api/index'
 
 const route = useRoute()
+const router = useRouter()
 const activeMenu = computed(() => route.path)
+const isLoginPage = computed(() => route.path === '/login')
+
+const userInfo = ref(JSON.parse(localStorage.getItem('userInfo') || 'null'))
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await authApi.logout()
+    localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
+    ElMessage.success('已退出登录')
+    router.push('/login')
+  } catch {
+    // 取消退出
+  }
+}
 </script>
 
 <style>
@@ -59,6 +93,8 @@ body { font-family: 'Microsoft YaHei', sans-serif; }
 .sidebar {
   background-color: #304156;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .logo {
@@ -68,10 +104,10 @@ body { font-family: 'Microsoft YaHei', sans-serif; }
   justify-content: center;
   background-color: #263445;
   color: #fff;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
   padding: 0 10px;
-  text-align: center;
+  flex-shrink: 0;
 }
 
 .header {
@@ -79,7 +115,9 @@ body { font-family: 'Microsoft YaHei', sans-serif; }
   border-bottom: 1px solid #e6e6e6;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  padding: 0 20px;
 }
 
 .header-title {
@@ -87,6 +125,15 @@ body { font-family: 'Microsoft YaHei', sans-serif; }
   font-weight: bold;
   color: #333;
 }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #606266;
+}
+
+.username { margin: 0 6px; }
 
 .main-content {
   background-color: #f0f2f5;

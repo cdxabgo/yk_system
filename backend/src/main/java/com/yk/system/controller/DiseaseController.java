@@ -19,8 +19,8 @@ public class DiseaseController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String diseaseName,
-            @RequestParam(required = false) String level) {
-        return Result.success(diseaseService.list(page, size, diseaseName, level));
+            @RequestParam(required = false) String diseaseType) {
+        return Result.success(diseaseService.list(page, size, diseaseName, diseaseType));
     }
 
     @GetMapping("/{id}")

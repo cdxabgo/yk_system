@@ -4,12 +4,13 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 疾病信息实体
+ * 系统用户实体
  */
 @Data
-public class Disease {
+public class SysUser {
     private Long id;
-    private String diseaseName;
-    private String diseaseType;
+    private String username;
+    private String password;
+    private String realName;
     private LocalDateTime createTime;
 }

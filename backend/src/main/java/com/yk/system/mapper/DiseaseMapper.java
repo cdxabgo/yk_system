@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper
 public interface DiseaseMapper {
     List<Disease> list(@Param("diseaseName") String diseaseName,
-                       @Param("level") String level);
+                       @Param("diseaseType") String diseaseType);
 
     Disease getById(@Param("id") Long id);
 

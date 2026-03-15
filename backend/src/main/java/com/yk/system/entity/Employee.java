@@ -9,13 +9,11 @@ import java.time.LocalDateTime;
 @Data
 public class Employee {
     private Long id;
-    private String empNo;
     private String name;
-    private String gender;
     private Integer age;
-    private String department;
-    private String position;
-    private String phone;
+    private String job;
+    private Integer workingYears;
+    private String contactInformation;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

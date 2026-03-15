@@ -16,9 +16,9 @@ public class DiseaseService {
     @Autowired
     private DiseaseMapper diseaseMapper;
 
-    public PageResult<Disease> list(int page, int size, String diseaseName, String level) {
+    public PageResult<Disease> list(int page, int size, String diseaseName, String diseaseType) {
         PageHelper.startPage(page, size);
-        List<Disease> list = diseaseMapper.list(diseaseName, level);
+        List<Disease> list = diseaseMapper.list(diseaseName, diseaseType);
         PageInfo<Disease> pageInfo = new PageInfo<>(list);
         return new PageResult<>(pageInfo.getTotal(), pageInfo.getList());
     }

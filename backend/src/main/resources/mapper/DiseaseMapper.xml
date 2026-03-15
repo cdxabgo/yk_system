@@ -5,12 +5,9 @@
 
     <resultMap id="DiseaseMap" type="Disease">
         <id column="id" property="id"/>
-        <result column="disease_code" property="diseaseCode"/>
         <result column="disease_name" property="diseaseName"/>
-        <result column="description" property="description"/>
-        <result column="level" property="level"/>
+        <result column="disease_type" property="diseaseType"/>
         <result column="create_time" property="createTime"/>
-        <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="list" resultMap="DiseaseMap">
@@ -19,8 +16,8 @@
             <if test="diseaseName != null and diseaseName != ''">
                 AND disease_name LIKE CONCAT('%', #{diseaseName}, '%')
             </if>
-            <if test="level != null and level != ''">
-                AND level = #{level}
+            <if test="diseaseType != null and diseaseType != ''">
+                AND disease_type LIKE CONCAT('%', #{diseaseType}, '%')
             </if>
         </where>
         ORDER BY create_time DESC
@@ -31,17 +28,15 @@
     </select>
 
     <insert id="insert" parameterType="Disease" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO disease (disease_code, disease_name, description, level)
-        VALUES (#{diseaseCode}, #{diseaseName}, #{description}, #{level})
+        INSERT INTO disease (disease_name, disease_type)
+        VALUES (#{diseaseName}, #{diseaseType})
     </insert>
 
     <update id="update" parameterType="Disease">
         UPDATE disease
         <set>
-            <if test="diseaseCode != null and diseaseCode != ''">disease_code = #{diseaseCode},</if>
             <if test="diseaseName != null and diseaseName != ''">disease_name = #{diseaseName},</if>
-            <if test="description != null">description = #{description},</if>
-            <if test="level != null and level != ''">level = #{level},</if>
+            <if test="diseaseType != null">disease_type = #{diseaseType},</if>
         </set>
         WHERE id = #{id}
     </update>

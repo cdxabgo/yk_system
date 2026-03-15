@@ -9,8 +9,7 @@ import java.util.List;
 @Mapper
 public interface EmployeeMapper {
     List<Employee> list(@Param("name") String name,
-                        @Param("department") String department,
-                        @Param("empNo") String empNo);
+                        @Param("job") String job);
 
     Employee getById(@Param("id") Long id);
 
@@ -19,6 +18,4 @@ public interface EmployeeMapper {
     int update(Employee employee);
 
     int deleteById(@Param("id") Long id);
-
-    Employee getByEmpNo(@Param("empNo") String empNo);
 }

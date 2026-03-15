@@ -1,5 +1,10 @@
 import request from './request'
 
+export const authApi = {
+  login: (data) => request.post('/auth/login', data),
+  logout: () => request.post('/auth/logout')
+}
+
 export const employeeApi = {
   list: (params) => request.get('/employee/list', { params }),
   getById: (id) => request.get(`/employee/${id}`),
@@ -20,9 +25,6 @@ export const heartRateApi = {
   list: (params) => request.get('/heartRate/list', { params }),
   getById: (id) => request.get(`/heartRate/${id}`),
   add: (data) => request.post('/heartRate', data),
-  delete: (id) => request.delete(`/heartRate/${id}`)
-}
-
-export const dutyApi = {
-  query: (params) => request.get('/duty/query', { params })
+  delete: (id) => request.delete(`/heartRate/${id}`),
+  monitor: (params) => request.get('/heartRate/monitor', { params })
 }

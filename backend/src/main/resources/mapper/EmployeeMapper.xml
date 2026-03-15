@@ -5,13 +5,11 @@
 
     <resultMap id="EmployeeMap" type="Employee">
         <id column="id" property="id"/>
-        <result column="emp_no" property="empNo"/>
         <result column="name" property="name"/>
-        <result column="gender" property="gender"/>
         <result column="age" property="age"/>
-        <result column="department" property="department"/>
-        <result column="position" property="position"/>
-        <result column="phone" property="phone"/>
+        <result column="job" property="job"/>
+        <result column="working_years" property="workingYears"/>
+        <result column="contact_information" property="contactInformation"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -22,11 +20,8 @@
             <if test="name != null and name != ''">
                 AND name LIKE CONCAT('%', #{name}, '%')
             </if>
-            <if test="department != null and department != ''">
-                AND department = #{department}
-            </if>
-            <if test="empNo != null and empNo != ''">
-                AND emp_no LIKE CONCAT('%', #{empNo}, '%')
+            <if test="job != null and job != ''">
+                AND job LIKE CONCAT('%', #{job}, '%')
             </if>
         </where>
         ORDER BY create_time DESC
@@ -36,25 +31,19 @@
         SELECT * FROM employee WHERE id = #{id}
     </select>
 
-    <select id="getByEmpNo" resultMap="EmployeeMap">
-        SELECT * FROM employee WHERE emp_no = #{empNo}
-    </select>
-
     <insert id="insert" parameterType="Employee" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO employee (emp_no, name, gender, age, department, position, phone)
-        VALUES (#{empNo}, #{name}, #{gender}, #{age}, #{department}, #{position}, #{phone})
+        INSERT INTO employee (name, age, job, working_years, contact_information)
+        VALUES (#{name}, #{age}, #{job}, #{workingYears}, #{contactInformation})
     </insert>
 
     <update id="update" parameterType="Employee">
         UPDATE employee
         <set>
-            <if test="empNo != null and empNo != ''">emp_no = #{empNo},</if>
             <if test="name != null and name != ''">name = #{name},</if>
-            <if test="gender != null and gender != ''">gender = #{gender},</if>
             <if test="age != null">age = #{age},</if>
-            <if test="department != null and department != ''">department = #{department},</if>
-            <if test="position != null and position != ''">position = #{position},</if>
-            <if test="phone != null">phone = #{phone},</if>
+            <if test="job != null">job = #{job},</if>
+            <if test="workingYears != null">working_years = #{workingYears},</if>
+            <if test="contactInformation != null">contact_information = #{contactInformation},</if>
         </set>
         WHERE id = #{id}
     </update>

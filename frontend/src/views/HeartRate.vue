@@ -1,180 +1,196 @@
 <template>
   <div class="page-container">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>心率信息管理</span>
-          <el-button type="primary" @click="openAdd">录入心率</el-button>
-        </div>
-      </template>
-
-      <!-- 搜索栏 -->
-      <el-form :inline="true" :model="query" class="search-form">
+    <el-card class="search-card">
+      <el-form :model="searchForm" inline>
         <el-form-item label="职工ID">
-          <el-input v-model="query.empId" placeholder="请输入职工ID" clearable style="width:120px" />
+          <el-input v-model.number="searchForm.employeeId" placeholder="职工ID" clearable style="width:120px" />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="query.status" placeholder="请选择状态" clearable>
-            <el-option label="正常" value="正常" />
-            <el-option label="异常" value="异常" />
+        <el-form-item label="异常状态">
+          <el-select v-model="searchForm.isAbnormal" clearable placeholder="全部" style="width:110px">
+            <el-option label="正常" :value="0" />
+            <el-option label="异常" :value="1" />
           </el-select>
         </el-form-item>
         <el-form-item label="开始时间">
-          <el-date-picker v-model="query.startTime" type="datetime" placeholder="开始时间"
-            value-format="YYYY-MM-DD HH:mm:ss" />
+          <el-date-picker v-model="searchForm.startTime" type="datetime" placeholder="开始时间"
+            value-format="YYYY-MM-DD HH:mm:ss" style="width:190px" />
         </el-form-item>
         <el-form-item label="结束时间">
-          <el-date-picker v-model="query.endTime" type="datetime" placeholder="结束时间"
-            value-format="YYYY-MM-DD HH:mm:ss" />
+          <el-date-picker v-model="searchForm.endTime" type="datetime" placeholder="结束时间"
+            value-format="YYYY-MM-DD HH:mm:ss" style="width:190px" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="loadData">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
+          <el-button type="primary" :icon="Search" @click="loadList">搜索</el-button>
+          <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
+    </el-card>
 
-      <!-- 表格 -->
+    <el-card class="table-card">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">心率记录列表</span>
+          <el-button type="primary" :icon="Plus" @click="openAdd">新增记录</el-button>
+        </div>
+      </template>
+
       <el-table :data="tableData" border stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="empNo" label="工号" width="100" />
-        <el-table-column prop="empName" label="姓名" width="100" />
-        <el-table-column prop="department" label="部门" />
-        <el-table-column prop="heartRate" label="心率(次/分)" width="120">
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column prop="id" label="记录ID" width="80" align="center" />
+        <el-table-column prop="employeeId" label="职工ID" width="80" align="center" />
+        <el-table-column prop="employeeName" label="职工姓名" width="100" />
+        <el-table-column prop="job" label="岗位" width="100" />
+        <el-table-column prop="heartRate" label="心率(次/分)" width="110" align="center">
           <template #default="{ row }">
-            <span :class="row.status === '异常' ? 'text-danger' : 'text-normal'">
-              {{ row.heartRate }}
-            </span>
+            <span :class="row.isAbnormal ? 'rate-abnormal' : 'rate-normal'">{{ row.heartRate }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="measureTime" label="测量时间" width="170" />
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="collectTime" label="采集时间" width="170" />
+        <el-table-column prop="isAbnormal" label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === '异常' ? 'danger' : 'success'">{{ row.status }}</el-tag>
+            <el-tag :type="row.isAbnormal ? 'danger' : 'success'">
+              {{ row.isAbnormal ? '异常' : '正常' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column prop="deviceId" label="设备ID" width="110" />
+        <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+            <el-button size="small" type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
-      <el-pagination
-        class="pagination"
-        v-model:current-page="page"
-        v-model:page-size="size"
-        :total="total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        @current-change="loadData"
-        @size-change="loadData"
-      />
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.size"
+          :page-sizes="[10, 20, 50]"
+          layout="total, sizes, prev, pager, next"
+          :total="pagination.total"
+          @change="loadList"
+        />
+      </div>
     </el-card>
 
-    <!-- 录入心率弹窗 -->
-    <el-dialog v-model="dialogVisible" title="录入心率" width="450px" destroy-on-close>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-        <el-form-item label="职工ID" prop="empId">
-          <el-input-number v-model="form.empId" :min="1" style="width:100%" />
+    <el-dialog v-model="dialogVisible" title="新增心率记录" width="480px" destroy-on-close>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="职工ID" prop="employeeId">
+          <el-input-number v-model="form.employeeId" :min="1" style="width:100%" placeholder="请输入职工ID" />
         </el-form-item>
         <el-form-item label="心率值" prop="heartRate">
-          <el-input-number v-model="form.heartRate" :min="20" :max="300" style="width:100%" />
-          <span class="unit">次/分钟</span>
+          <el-input-number v-model="form.heartRate" :min="30" :max="220" style="width:100%" />
         </el-form-item>
-        <el-form-item label="测量时间" prop="measureTime">
-          <el-date-picker v-model="form.measureTime" type="datetime" placeholder="请选择测量时间"
+        <el-form-item label="采集时间" prop="collectTime">
+          <el-date-picker v-model="form.collectTime" type="datetime" placeholder="请选择采集时间"
             value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio label="正常">正常</el-radio>
-            <el-radio label="异常">异常</el-radio>
+        <el-form-item label="是否异常" prop="isAbnormal">
+          <el-radio-group v-model="form.isAbnormal">
+            <el-radio :label="0">正常</el-radio>
+            <el-radio :label="1">异常</el-radio>
           </el-radio-group>
+        </el-form-item>
+        <el-form-item label="设备ID">
+          <el-input v-model="form.deviceId" placeholder="如：HB-001（选填）" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Plus, Delete } from '@element-plus/icons-vue'
 import { heartRateApi } from '../api/index'
 
 const loading = ref(false)
+const submitLoading = ref(false)
 const tableData = ref([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(10)
 const dialogVisible = ref(false)
 const formRef = ref(null)
 
-const query = reactive({ empId: '', status: '', startTime: '', endTime: '' })
-const form = reactive({ empId: null, heartRate: 75, measureTime: '', status: '正常' })
+const searchForm = reactive({
+  employeeId: null, isAbnormal: null, startTime: '', endTime: ''
+})
+const pagination = reactive({ page: 1, size: 10, total: 0 })
+const form = reactive({
+  employeeId: null, heartRate: 75, collectTime: '', isAbnormal: 0, deviceId: ''
+})
 
 const rules = {
-  empId: [{ required: true, message: '请输入职工ID', trigger: 'blur' }],
+  employeeId: [{ required: true, message: '请输入职工ID', trigger: 'blur' }],
   heartRate: [{ required: true, message: '请输入心率值', trigger: 'blur' }],
-  measureTime: [{ required: true, message: '请选择测量时间', trigger: 'change' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
+  collectTime: [{ required: true, message: '请选择采集时间', trigger: 'change' }]
 }
 
-async function loadData() {
+const loadList = async () => {
   loading.value = true
   try {
-    const params = { page: page.value, size: size.value }
-    if (query.empId) params.empId = query.empId
-    if (query.status) params.status = query.status
-    if (query.startTime) params.startTime = query.startTime
-    if (query.endTime) params.endTime = query.endTime
+    const params = {
+      page: pagination.page,
+      size: pagination.size
+    }
+    if (searchForm.employeeId) params.employeeId = searchForm.employeeId
+    if (searchForm.isAbnormal !== null && searchForm.isAbnormal !== '') params.isAbnormal = searchForm.isAbnormal
+    if (searchForm.startTime) params.startTime = searchForm.startTime
+    if (searchForm.endTime) params.endTime = searchForm.endTime
+
     const res = await heartRateApi.list(params)
     tableData.value = res.data.list
-    total.value = res.data.total
+    pagination.total = Number(res.data.total)
   } finally {
     loading.value = false
   }
 }
 
-function resetQuery() {
-  Object.assign(query, { empId: '', status: '', startTime: '', endTime: '' })
-  page.value = 1
-  loadData()
+const resetSearch = () => {
+  Object.assign(searchForm, { employeeId: null, isAbnormal: null, startTime: '', endTime: '' })
+  pagination.page = 1
+  loadList()
 }
 
-function openAdd() {
-  Object.assign(form, { empId: null, heartRate: 75, measureTime: '', status: '正常' })
+const openAdd = () => {
+  Object.assign(form, { employeeId: null, heartRate: 75, collectTime: '', isAbnormal: 0, deviceId: '' })
   dialogVisible.value = true
 }
 
-async function handleSubmit() {
-  await formRef.value.validate()
-  await heartRateApi.add(form)
-  ElMessage.success('录入成功')
-  dialogVisible.value = false
-  loadData()
+const handleSubmit = async () => {
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    submitLoading.value = true
+    try {
+      await heartRateApi.add(form)
+      ElMessage.success('新增成功')
+      dialogVisible.value = false
+      loadList()
+    } finally {
+      submitLoading.value = false
+    }
+  })
 }
 
-async function handleDelete(id) {
-  await ElMessageBox.confirm('确定删除该心率记录吗？', '提示', { type: 'warning' })
-  await heartRateApi.delete(id)
+const handleDelete = async (row) => {
+  await ElMessageBox.confirm(`确定删除该心率记录吗？`, '警告', { type: 'warning' })
+  await heartRateApi.delete(row.id)
   ElMessage.success('删除成功')
-  loadData()
+  loadList()
 }
 
-loadData()
+onMounted(loadList)
 </script>
 
 <style scoped>
-.page-container { padding: 0; }
+.page-container { display: flex; flex-direction: column; gap: 16px; }
+.search-card :deep(.el-card__body) { padding: 16px 20px 0; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.search-form { margin-bottom: 10px; }
-.pagination { margin-top: 15px; display: flex; justify-content: flex-end; }
-.text-danger { color: #f56c6c; font-weight: bold; }
-.text-normal { color: #67c23a; }
-.unit { margin-left: 8px; color: #909399; }
+.card-title { font-size: 16px; font-weight: 600; color: #303133; }
+.pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+.rate-abnormal { color: #f56c6c; font-weight: bold; font-size: 15px; }
+.rate-normal { color: #67c23a; font-weight: bold; font-size: 15px; }
 </style>
