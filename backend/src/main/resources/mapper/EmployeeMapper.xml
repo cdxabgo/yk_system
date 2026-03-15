@@ -7,33 +7,34 @@
         <id column="id" property="id"/>
         <result column="name" property="name"/>
         <result column="age" property="age"/>
-        <result column="job" property="job"/>
-        <result column="working_years" property="workingYears"/>
-        <result column="contact_information" property="contactInformation"/>
+        <result column="position" property="job"/>
+        <result column="phone" property="contactInformation"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="list" resultMap="EmployeeMap">
-        SELECT * FROM employee
+        SELECT id, name, age, position, phone, create_time, update_time
+        FROM employee
         <where>
             <if test="name != null and name != ''">
                 AND name LIKE CONCAT('%', #{name}, '%')
             </if>
             <if test="job != null and job != ''">
-                AND job LIKE CONCAT('%', #{job}, '%')
+                AND position LIKE CONCAT('%', #{job}, '%')
             </if>
         </where>
         ORDER BY create_time DESC
     </select>
 
     <select id="getById" resultMap="EmployeeMap">
-        SELECT * FROM employee WHERE id = #{id}
+        SELECT id, name, age, position, phone, create_time, update_time
+        FROM employee WHERE id = #{id}
     </select>
 
     <insert id="insert" parameterType="Employee" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO employee (name, age, job, working_years, contact_information)
-        VALUES (#{name}, #{age}, #{job}, #{workingYears}, #{contactInformation})
+        INSERT INTO employee (name, age, position, phone)
+        VALUES (#{name}, #{age}, #{job}, #{contactInformation})
     </insert>
 
     <update id="update" parameterType="Employee">
@@ -41,9 +42,8 @@
         <set>
             <if test="name != null and name != ''">name = #{name},</if>
             <if test="age != null">age = #{age},</if>
-            <if test="job != null">job = #{job},</if>
-            <if test="workingYears != null">working_years = #{workingYears},</if>
-            <if test="contactInformation != null">contact_information = #{contactInformation},</if>
+            <if test="job != null">position = #{job},</if>
+            <if test="contactInformation != null">phone = #{contactInformation},</if>
         </set>
         WHERE id = #{id}
     </update>
