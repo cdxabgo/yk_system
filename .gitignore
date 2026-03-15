@@ -1,16 +1,41 @@
-# Maven
-backend/target/
-backend/.mvn/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# Node.js / Frontend
-frontend/node_modules/
-frontend/dist/
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
 
 # IDE
 .idea/
-*.iml
 .vscode/
-*.class
+*.swp
+*.swo
+*~
 
-# Logs
+# 项目输出
+output/models/*.pkl
+output/logs/*.log
+output/results/*.csv
+
+# 保留目录结构
+!output/models/.gitkeep
+!output/logs/.gitkeep
+!output/results/.gitkeep
+
+# 临时文件
+*.tmp
+*.bak
 *.log
+.DS_Store
+Thumbs.db
+
+# 测试文件
+.pytest_cache/
+.coverage
+htmlcov/
