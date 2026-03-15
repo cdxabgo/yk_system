@@ -28,6 +28,10 @@
           <el-icon><Odometer /></el-icon>
           <span>心率管理</span>
         </el-menu-item>
+        <el-menu-item index="/realtime">
+          <el-icon><Cpu /></el-icon>
+          <span>实时心率监测</span>
+        </el-menu-item>
         <el-menu-item index="/monitor">
           <el-icon><DataAnalysis /></el-icon>
           <span>班中职工监控</span>
@@ -56,7 +60,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Monitor, DataAnalysis, FirstAidKit, Odometer, Avatar } from '@element-plus/icons-vue'
+import { User, Monitor, DataAnalysis, FirstAidKit, Odometer, Avatar, Cpu } from '@element-plus/icons-vue'
 import { authApi } from './api/index'
 
 const route = useRoute()

@@ -5,6 +5,7 @@
 ## 📋 目录
 
 - [系统简介](#-系统简介)
+- [🆕 实时前后端对接（v3.0 新增）](#-实时前后端对接v30-新增)
 - [v2.0 新增功能](#-v20-新增功能) 🆕
 - [5分钟快速开始](#-5分钟快速开始)
 - [Java调用指南](#-java调用指南) ⭐
@@ -29,8 +30,83 @@
 - 🆕 **Redis缓存** - 近10分钟数据存储，性能提升100倍
 - 🆕 **双模式检测** - 连续异常检测(数据≥5) + 瞬时预警(数据<5)
 - 🆕 **MySQL存储** - 设备状态、异常记录、每日统计
+- 🆕 **前后端实时推送** - SSE (Server-Sent Events) 无需独立 MQTT 服务
 
 ---
+
+## 🔥 实时前后端对接（v3.0 新增）
+
+> **不需要申请额外的 MQTT 服务！** 前端通过 Java 后端的 SSE 长连接接收实时推送。
+
+### 整体数据流
+
+```
+心率设备
+  │  MQTT 协议
+  ▼
+MQTT Broker（公共或自建，Python 侧订阅即可）
+  │
+  ▼
+Python ML 服务（mqtt_handler.py + rest_api.py）
+  │  本机 HTTP POST /api/realtime/push
+  ▼
+Java Spring Boot 后端（RealtimeController）
+  │  SSE 长连接推送
+  ▼
+Vue.js 前端（RealtimeMonitor.vue）
+```
+
+### 启动步骤
+
+**第一步：启动 Java 后端**
+```bash
+cd backend
+mvn spring-boot:run
+# 后端在 http://localhost:8081 启动
+```
+
+**第二步：启动前端**
+```bash
+cd frontend
+npm install
+npm run dev
+# 前端在 http://localhost:3000 启动
+```
+
+**第三步：启动 Python ML REST API**
+```bash
+cd <项目根目录>
+python rest_api.py
+# Python 服务在 http://localhost:5000 启动
+```
+
+**第四步：从前端"实时心率监测"页面启动 MQTT 监测**
+
+访问 `http://localhost:3000` → 登录 → 点击左侧「**实时心率监测**」菜单：
+
+1. 点击「**连接实时推送**」 —— 前端与 Java 后端建立 SSE 长连接
+2. 点击「**启动 MQTT 监测**」 —— 通知 Python 连接 MQTT Broker，开始接收设备数据
+3. 数据将实时显示在页面上，异常心率自动高亮+告警
+
+### 配置 Java 后端地址（仅需改环境变量）
+
+Python 默认向 `http://localhost:8081` 推送，如需修改：
+```bash
+export JAVA_BACKEND_URL=http://your-java-host:8081
+python rest_api.py
+```
+
+### 新增接口说明
+
+| 方向 | 地址 | 说明 |
+|------|------|------|
+| 前端 → Java | `GET /api/realtime/stream` | SSE 订阅（无需登录 Token） |
+| Python → Java | `POST /api/realtime/push` | ML 结果推送（内网调用，无需 Token） |
+| 前端 → Python | `POST /python/api/monitor/start` | 启动 MQTT 监测（Vite 代理） |
+| 前端 → Python | `POST /python/api/monitor/stop`  | 停止 MQTT 监测 |
+
+---
+
 
 ## 🆕 v2.0 新增功能
 

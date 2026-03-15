@@ -30,6 +30,12 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/auth/login");
+                .excludePathPatterns(
+                        "/api/auth/login",
+                        // SSE 流端点：浏览器 EventSource 不支持自定义请求头，故排除
+                        "/api/realtime/stream",
+                        // Python ML 推送端点：仅限本机调用，故排除
+                        "/api/realtime/push"
+                );
     }
 }
