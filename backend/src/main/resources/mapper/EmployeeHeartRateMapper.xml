@@ -7,9 +7,9 @@
         <id column="id" property="id"/>
         <result column="employee_id" property="employeeId"/>
         <result column="heart_rate" property="heartRate"/>
-        <result column="collect_time" property="collectTime"/>
+        <result column="measure_time" property="collectTime"/>
         <result column="is_abnormal" property="isAbnormal"/>
-        <result column="device_id" property="deviceId"/>
+        <result column="source" property="deviceId"/>
         <result column="employee_name" property="employeeName"/>
         <result column="job" property="job"/>
     </resultMap>
@@ -32,7 +32,8 @@
     </resultMap>
 
     <select id="list" resultMap="HeartRateMap">
-        SELECT hr.*, e.name AS employee_name, e.job
+        SELECT hr.id, hr.employee_id, hr.heart_rate, hr.measure_time, hr.is_abnormal, hr.source,
+               e.name AS employee_name, e.position AS job
         FROM employee_heart_rate hr
         LEFT JOIN employee e ON hr.employee_id = e.id
         <where>
@@ -43,24 +44,25 @@
                 AND hr.is_abnormal = #{isAbnormal}
             </if>
             <if test="startTime != null and startTime != ''">
-                AND hr.collect_time >= #{startTime}
+                AND hr.measure_time >= #{startTime}
             </if>
             <if test="endTime != null and endTime != ''">
-                AND hr.collect_time &lt;= #{endTime}
+                AND hr.measure_time &lt;= #{endTime}
             </if>
         </where>
-        ORDER BY hr.collect_time DESC
+        ORDER BY hr.measure_time DESC
     </select>
 
     <select id="getById" resultMap="HeartRateMap">
-        SELECT hr.*, e.name AS employee_name, e.job
+        SELECT hr.id, hr.employee_id, hr.heart_rate, hr.measure_time, hr.is_abnormal, hr.source,
+               e.name AS employee_name, e.position AS job
         FROM employee_heart_rate hr
         LEFT JOIN employee e ON hr.employee_id = e.id
         WHERE hr.id = #{id}
     </select>
 
     <insert id="insert" parameterType="EmployeeHeartRate" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO employee_heart_rate (employee_id, heart_rate, collect_time, is_abnormal, device_id)
+        INSERT INTO employee_heart_rate (employee_id, heart_rate, measure_time, is_abnormal, source)
         VALUES (#{employeeId}, #{heartRate}, #{collectTime}, #{isAbnormal}, #{deviceId})
     </insert>
 
@@ -77,13 +79,11 @@
             e.id              AS employee_id,
             e.name,
             e.age,
-            e.job,
-            e.working_years,
-            e.contact_information,
+            e.position        AS job,
             hr_latest.heart_rate    AS latest_heart_rate,
-            hr_latest.collect_time  AS latest_collect_time,
+            hr_latest.measure_time  AS latest_collect_time,
             hr_latest.is_abnormal   AS latest_is_abnormal,
-            hr_latest.device_id     AS latest_device_id,
+            hr_latest.source        AS latest_device_id,
             IFNULL(hr_stat.total_records, 0)  AS total_records,
             IFNULL(hr_stat.abnormal_count, 0) AS abnormal_count,
             IFNULL(dis_stat.disease_count, 0) AS disease_count,
@@ -93,10 +93,10 @@
             SELECT hr1.*
             FROM employee_heart_rate hr1
             INNER JOIN (
-                SELECT employee_id, MAX(collect_time) AS max_time
+                SELECT employee_id, MAX(measure_time) AS max_time
                 FROM employee_heart_rate
                 GROUP BY employee_id
-            ) hr2 ON hr1.employee_id = hr2.employee_id AND hr1.collect_time = hr2.max_time
+            ) hr2 ON hr1.employee_id = hr2.employee_id AND hr1.measure_time = hr2.max_time
         ) hr_latest ON e.id = hr_latest.employee_id
         LEFT JOIN (
             SELECT employee_id,
@@ -111,14 +111,17 @@
             GROUP BY employee_id
         ) dis_stat ON e.id = dis_stat.employee_id
         <!-- Streak subquery: finds the start of the current continuous abnormal streak.
-             Returns MIN(collect_time) of abnormal records for which no subsequent normal record exists.
-             Performance note: for large tables, add index on (employee_id, is_abnormal, collect_time). -->
+             Returns MIN(measure_time) of abnormal records for which no subsequent normal record exists.
+             Performance note: for large tables, add index on (employee_id, is_abnormal, measure_time). -->
         LEFT JOIN (
+            SELECT h1.employee_id, MIN(h1.measure_time) AS streak_start
+            FROM employee_heart_rate h1
+            WHERE h1.is_abnormal = 1
               AND NOT EXISTS (
                   SELECT 1 FROM employee_heart_rate h2
                   WHERE h2.employee_id = h1.employee_id
                     AND h2.is_abnormal = 0
-                    AND h2.collect_time > h1.collect_time
+                    AND h2.measure_time > h1.measure_time
               )
             GROUP BY h1.employee_id
         ) streak_info ON e.id = streak_info.employee_id
@@ -127,7 +130,7 @@
                 AND e.name LIKE CONCAT('%', #{name}, '%')
             </if>
             <if test="job != null and job != ''">
-                AND e.job LIKE CONCAT('%', #{job}, '%')
+                AND e.position LIKE CONCAT('%', #{job}, '%')
             </if>
             <if test="isAbnormal != null">
                 AND hr_latest.is_abnormal = #{isAbnormal}
