@@ -241,6 +241,19 @@ class MQTTHeartRateMonitor:
             # 每接收到一条数据就显示
             print(f"\n📊 接收实时数据 [用户{user_id}] 时间: {data_time} 心率: {heart_rate} bpm")
             
+            # 触发实时回调（立即推送原始数据供前端展示，不含异常检测结果）
+            # 注：异常检测在数据积累到 batch_size 后由 analyze_user_data 触发，
+            #     检测结果通过 instant_anomaly_detection 内的第二次 data_callback 推送
+            if self.data_callback:
+                self.data_callback({
+                    'user_id': user_id,
+                    'heart_rate': heart_rate,
+                    'data_time': data_time,
+                    'filtered_data': [{'heart_rate': heart_rate, 'time': data_time}],
+                    'ml_anomalies': [],
+                    'rule_anomalies': {}
+                })
+            
             # 从Redis获取历史数据量，判断是否需要分析
             if self.redis_storage:
                 history_count = self.redis_storage.get_history_count(user_id)
@@ -564,7 +577,19 @@ class MQTTHeartRateMonitor:
                 self.total_anomalies += 1
             else:
                 print(f"✅ 心率正常 ({latest_hr:.1f} bpm)")
-            
+
+            # 触发数据回调推送异常检测结果
+            if self.data_callback:
+                self.data_callback({
+                    'user_id': user_id,
+                    'heart_rate': latest_hr,
+                    'data_time': latest_time,
+                    'filtered_data': [{'heart_rate': float(hr), 'time': str(t)}
+                                      for hr, t in zip(heart_rates, time_list)],
+                    'ml_anomalies': anomaly_reasons if is_anomaly else [],
+                    'rule_anomalies': {}
+                })
+
             print(f"\n{'='*80}\n")
             
         except Exception as e:

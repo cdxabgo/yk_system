@@ -4,6 +4,7 @@ import Employee from '../views/Employee.vue'
 import Disease from '../views/Disease.vue'
 import HeartRate from '../views/HeartRate.vue'
 import Monitor from '../views/Monitor.vue'
+import RealtimeMonitor from '../views/RealtimeMonitor.vue'
 
 const routes = [
   { path: '/login', component: Login },
@@ -11,7 +12,8 @@ const routes = [
   { path: '/employee', component: Employee, meta: { requiresAuth: true } },
   { path: '/disease', component: Disease, meta: { requiresAuth: true } },
   { path: '/heartRate', component: HeartRate, meta: { requiresAuth: true } },
-  { path: '/monitor', component: Monitor, meta: { requiresAuth: true } }
+  { path: '/monitor', component: Monitor, meta: { requiresAuth: true } },
+  { path: '/realtime', component: RealtimeMonitor, meta: { requiresAuth: true } }
 ]
 
 const router = createRouter({

@@ -9,12 +9,16 @@ import threading
 import time
 import json
 import os
+import urllib.request
 from datetime import datetime
 from mqtt_handler import MQTTHeartRateMonitor
 from typing import Dict, List
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域访问
+
+# Java后端地址（用于将ML检测结果实时推送给前端）
+JAVA_BACKEND_URL = os.environ.get('JAVA_BACKEND_URL', 'http://localhost:8081')
 
 # 全局变量
 monitor_instance = None
@@ -28,6 +32,27 @@ monitoring_data = {
     'total_records': 0,
     'anomalies': []  # 存储最近的异常记录
 }
+
+
+def notify_java_backend(payload: dict):
+    """
+    将心率检测结果推送至 Java 后端（/api/realtime/push），
+    Java 后端再通过 SSE 广播给所有在线前端客户端。
+    推送失败时静默忽略，不影响主监测流程。
+    """
+    try:
+        data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(
+            f"{JAVA_BACKEND_URL}/api/realtime/push",
+            data=data,
+            headers={'Content-Type': 'application/json; charset=utf-8'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=2):
+            pass
+    except Exception:
+        pass  # 推送失败不影响主流程
+
 
 # ==================== 辅助函数 ====================
 
@@ -43,18 +68,47 @@ def monitor_worker(broker: str, port: int, topics: List[str]):
             """数据回调处理"""
             monitoring_data['latest_data'] = data_info.get('filtered_data', [])[-10:]  # 保留最新10条
             monitoring_data['total_records'] += len(data_info.get('filtered_data', []))
-            
+
+            ml_anomalies = data_info.get('ml_anomalies') or []
+            rule_anomalies = data_info.get('rule_anomalies') or {}
+            is_abnormal = bool(ml_anomalies or rule_anomalies)
+
+            # 构造异常类型描述
+            anomaly_type = None
+            if is_abnormal:
+                parts = []
+                if ml_anomalies:
+                    parts.append(', '.join(str(a) for a in ml_anomalies))
+                if rule_anomalies and isinstance(rule_anomalies, dict):
+                    rule_keys = [k for k, v in rule_anomalies.items() if v]
+                    if rule_keys:
+                        parts.append(', '.join(rule_keys))
+                elif rule_anomalies:
+                    parts.append(str(rule_anomalies))
+                anomaly_type = '; '.join(parts) if parts else '异常'
+
+            # 构造推送给 Java 后端的实时数据包
+            push_payload = {
+                'userId': data_info.get('user_id', 'unknown'),
+                'heartRate': data_info.get('heart_rate'),
+                'dataTime': data_info.get('data_time', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                'isAbnormal': is_abnormal,
+                'anomalyType': anomaly_type,
+                'severity': 'high' if is_abnormal else 'normal'
+            }
+            notify_java_backend(push_payload)
+
             # 检测异常
-            if data_info.get('ml_anomalies') or data_info.get('rule_anomalies'):
+            if is_abnormal:
                 anomaly_record = {
                     'timestamp': datetime.now().isoformat(),
                     'user_id': data_info.get('user_id', 'unknown'),
-                    'ml_anomalies': data_info.get('ml_anomalies', []),
-                    'rule_anomalies': data_info.get('rule_anomalies', [])
+                    'ml_anomalies': ml_anomalies,
+                    'rule_anomalies': rule_anomalies
                 }
                 monitoring_data['anomalies'].append(anomaly_record)
                 monitoring_data['anomaly_count'] += 1
-                
+
                 # 只保留最近50条异常
                 if len(monitoring_data['anomalies']) > 50:
                     monitoring_data['anomalies'] = monitoring_data['anomalies'][-50:]
