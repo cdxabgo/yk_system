@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yk.system.mapper.EmployeeHeartRateMapper">
+
+    <resultMap id="HeartRateMap" type="EmployeeHeartRate">
+        <id column="id" property="id"/>
+        <result column="employee_id" property="employeeId"/>
+        <result column="heart_rate" property="heartRate"/>
+        <result column="collect_time" property="collectTime"/>
+        <result column="is_abnormal" property="isAbnormal"/>
+        <result column="device_id" property="deviceId"/>
+        <result column="employee_name" property="employeeName"/>
+        <result column="job" property="job"/>
+    </resultMap>
+
+    <resultMap id="MonitorVOMap" type="EmployeeMonitorVO">
+        <result column="employee_id" property="employeeId"/>
+        <result column="name" property="name"/>
+        <result column="age" property="age"/>
+        <result column="job" property="job"/>
+        <result column="working_years" property="workingYears"/>
+        <result column="contact_information" property="contactInformation"/>
+        <result column="latest_heart_rate" property="latestHeartRate"/>
+        <result column="latest_collect_time" property="latestCollectTime"/>
+        <result column="latest_is_abnormal" property="latestIsAbnormal"/>
+        <result column="latest_device_id" property="latestDeviceId"/>
+        <result column="total_records" property="totalRecords"/>
+        <result column="abnormal_count" property="abnormalCount"/>
+        <result column="disease_count" property="diseaseCount"/>
+    </resultMap>
+
+    <select id="list" resultMap="HeartRateMap">
+        SELECT hr.*, e.name AS employee_name, e.job
+        FROM employee_heart_rate hr
+        LEFT JOIN employee e ON hr.employee_id = e.id
+        <where>
+            <if test="employeeId != null">
+                AND hr.employee_id = #{employeeId}
+            </if>
+            <if test="isAbnormal != null">
+                AND hr.is_abnormal = #{isAbnormal}
+            </if>
+            <if test="startTime != null and startTime != ''">
+                AND hr.collect_time >= #{startTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                AND hr.collect_time &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY hr.collect_time DESC
+    </select>
+
+    <select id="getById" resultMap="HeartRateMap">
+        SELECT hr.*, e.name AS employee_name, e.job
+        FROM employee_heart_rate hr
+        LEFT JOIN employee e ON hr.employee_id = e.id
+        WHERE hr.id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="EmployeeHeartRate" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO employee_heart_rate (employee_id, heart_rate, collect_time, is_abnormal, device_id)
+        VALUES (#{employeeId}, #{heartRate}, #{collectTime}, #{isAbnormal}, #{deviceId})
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM employee_heart_rate WHERE id = #{id}
+    </delete>
+
+    <!--
+        班中职工监控查询：
+        JOIN 职工信息表 + 心率表（最新记录）+ 异常心率统计
+    -->
+    <select id="queryMonitor" resultMap="MonitorVOMap">
+        SELECT
+            e.id              AS employee_id,
+            e.name,
+            e.age,
+            e.job,
+            e.working_years,
+            e.contact_information,
+            hr_latest.heart_rate    AS latest_heart_rate,
+            hr_latest.collect_time  AS latest_collect_time,
+            hr_latest.is_abnormal   AS latest_is_abnormal,
+            hr_latest.device_id     AS latest_device_id,
+            IFNULL(hr_stat.total_records, 0)  AS total_records,
+            IFNULL(hr_stat.abnormal_count, 0) AS abnormal_count,
+            IFNULL(dis_stat.disease_count, 0) AS disease_count
+        FROM employee e
+        LEFT JOIN (
+            SELECT hr1.*
+            FROM employee_heart_rate hr1
+            INNER JOIN (
+                SELECT employee_id, MAX(collect_time) AS max_time
+                FROM employee_heart_rate
+                GROUP BY employee_id
+            ) hr2 ON hr1.employee_id = hr2.employee_id AND hr1.collect_time = hr2.max_time
+        ) hr_latest ON e.id = hr_latest.employee_id
+        LEFT JOIN (
+            SELECT employee_id,
+                   COUNT(*) AS total_records,
+                   SUM(is_abnormal) AS abnormal_count
+            FROM employee_heart_rate
+            GROUP BY employee_id
+        ) hr_stat ON e.id = hr_stat.employee_id
+        LEFT JOIN (
+            SELECT employee_id, COUNT(*) AS disease_count
+            FROM employee_disease_relation
+            GROUP BY employee_id
+        ) dis_stat ON e.id = dis_stat.employee_id
+        <where>
+            <if test="name != null and name != ''">
+                AND e.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="job != null and job != ''">
+                AND e.job LIKE CONCAT('%', #{job}, '%')
+            </if>
+            <if test="isAbnormal != null">
+                AND hr_latest.is_abnormal = #{isAbnormal}
+            </if>
+        </where>
+        ORDER BY e.id
+    </select>
+
+</mapper>
