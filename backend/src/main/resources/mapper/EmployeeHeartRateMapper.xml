@@ -28,6 +28,7 @@
         <result column="total_records" property="totalRecords"/>
         <result column="abnormal_count" property="abnormalCount"/>
         <result column="disease_count" property="diseaseCount"/>
+        <result column="streak_start_time" property="streakStartTime"/>
     </resultMap>
 
     <select id="list" resultMap="HeartRateMap">
@@ -85,7 +86,8 @@
             hr_latest.device_id     AS latest_device_id,
             IFNULL(hr_stat.total_records, 0)  AS total_records,
             IFNULL(hr_stat.abnormal_count, 0) AS abnormal_count,
-            IFNULL(dis_stat.disease_count, 0) AS disease_count
+            IFNULL(dis_stat.disease_count, 0) AS disease_count,
+            streak_info.streak_start          AS streak_start_time
         FROM employee e
         LEFT JOIN (
             SELECT hr1.*
@@ -108,6 +110,18 @@
             FROM employee_disease_relation
             GROUP BY employee_id
         ) dis_stat ON e.id = dis_stat.employee_id
+        <!-- Streak subquery: finds the start of the current continuous abnormal streak.
+             Returns MIN(collect_time) of abnormal records for which no subsequent normal record exists.
+             Performance note: for large tables, add index on (employee_id, is_abnormal, collect_time). -->
+        LEFT JOIN (
+              AND NOT EXISTS (
+                  SELECT 1 FROM employee_heart_rate h2
+                  WHERE h2.employee_id = h1.employee_id
+                    AND h2.is_abnormal = 0
+                    AND h2.collect_time > h1.collect_time
+              )
+            GROUP BY h1.employee_id
+        ) streak_info ON e.id = streak_info.employee_id
         <where>
             <if test="name != null and name != ''">
                 AND e.name LIKE CONCAT('%', #{name}, '%')
