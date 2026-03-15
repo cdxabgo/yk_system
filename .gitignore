@@ -39,3 +39,7 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+backend/target/
+frontend/node_modules/
+package-lock.json
