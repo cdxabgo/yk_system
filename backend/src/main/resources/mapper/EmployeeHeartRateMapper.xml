@@ -20,7 +20,7 @@
         <result column="age" property="age"/>
         <result column="job" property="job"/>
         <result column="working_years" property="workingYears"/>
-        <result column="contact_information" property="contactInformation"/>
+        <result column="phone" property="contactInformation"/>
         <result column="latest_heart_rate" property="latestHeartRate"/>
         <result column="latest_collect_time" property="latestCollectTime"/>
         <result column="latest_is_abnormal" property="latestIsAbnormal"/>
@@ -80,6 +80,8 @@
             e.name,
             e.age,
             e.position        AS job,
+            e.working_years,
+            e.phone,
             hr_latest.heart_rate    AS latest_heart_rate,
             hr_latest.measure_time  AS latest_collect_time,
             hr_latest.is_abnormal   AS latest_is_abnormal,
