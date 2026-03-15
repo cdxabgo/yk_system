@@ -47,7 +47,7 @@
 MQTT Broker（公共或自建，Python 侧订阅即可）
   │
   ▼
-Python ML 服务（mqtt_handler.py + rest_api.py）
+Python ML 服务（heart_rate_model/mqtt_handler.py + heart_rate_model/rest_api.py）
   │  本机 HTTP POST /api/realtime/push
   ▼
 Java Spring Boot 后端（RealtimeController）
@@ -75,7 +75,7 @@ npm run dev
 
 **第三步：启动 Python ML REST API**
 ```bash
-cd <项目根目录>
+cd heart_rate_model
 python rest_api.py
 # Python 服务在 http://localhost:5000 启动
 ```
@@ -93,7 +93,7 @@ python rest_api.py
 Python 默认向 `http://localhost:8081` 推送，如需修改：
 ```bash
 export JAVA_BACKEND_URL=http://your-java-host:8081
-python rest_api.py
+cd heart_rate_model && python rest_api.py
 ```
 
 ### 新增接口说明
@@ -142,7 +142,7 @@ python rest_api.py
 
 ### 配置说明
 
-#### 数据库配置 (config.py)
+#### 数据库配置 (heart_rate_model/config.py)
 ```python
 DATABASE_CONFIG = {
     'mysql': {
@@ -156,7 +156,7 @@ DATABASE_CONFIG = {
 }
 ```
 
-#### Redis配置 (config.py)
+#### Redis配置 (heart_rate_model/config.py)
 ```python
 REDIS_CONFIG = {
     'host': 'localhost',
@@ -172,7 +172,7 @@ REDIS_CONFIG = {
 
 1. **安装依赖**
 ```bash
-pip install -r requirements.txt
+pip install -r heart_rate_model/requirements.txt
 ```
 
 2. **启动Redis服务**
@@ -187,13 +187,13 @@ CREATE DATABASE heart_rate_db CHARACTER SET utf8mb4;
 
 4. **初始化数据库表**
 ```bash
-python main.py
+cd heart_rate_model && python main.py
 # 选择 D. 初始化数据库
 ```
 
 5. **启动MQTT监测**
 ```bash
-python main.py
+cd heart_rate_model && python main.py
 # 选择 4. MQTT监测
 # 启用Redis: 是
 # 启用数据库: 是
@@ -234,17 +234,17 @@ python main.py
 
 ### 步骤1: 安装依赖
 ```bash
-pip install -r requirements.txt
+pip install -r heart_rate_model/requirements.txt
 ```
 
 ### 步骤2: 验证系统
 ```bash
-python utils.py verify
+cd heart_rate_model && python utils.py verify
 ```
 
 ### 步骤3: 启动API服务
 ```bash
-python rest_api.py
+cd heart_rate_model && python rest_api.py
 ```
 
 ### 步骤4: 测试接口
@@ -429,7 +429,7 @@ public class MonitorStatus {
 - **服务地址**: `http://localhost:5000`
 - **数据格式**: JSON
 - **编码**: UTF-8
-- **端口**: 5000 (可在config.py修改)
+- **端口**: 5000 (可在 heart_rate_model/config.py 修改)
 
 ### API接口列表
 
@@ -780,7 +780,7 @@ HTTP状态码：
 
 ### 修改配置
 
-编辑 `config.py` 文件：
+编辑 `heart_rate_model/config.py` 文件：
 
 ```python
 # MQTT服务器配置
@@ -838,35 +838,29 @@ FILTER_CONFIG = {
 ### 项目结构
 
 ```
-v1/
-├── 核心模块/
-│   ├── rest_api.py              # REST API服务 ⭐
-│   ├── mqtt_handler.py          # MQTT处理+异常检测
-│   ├── lgbm_model.py            # LightGBM模型
-│   ├── enhanced_detector.py     # 规则检测
-│   ├── data_filter.py           # 数据清洗
-│   ├── data_generator.py        # 数据生成
-│   └── integrated_system.py     # 模拟训练系统
-│
-├── 入口程序/
-│   ├── main.py                  # 统一主程序 ⭐
-│   └── utils.py                 # 工具模块
-│
-├── 配置文件/
-│   ├── config.py                # 系统配置
-│   └── requirements.txt         # 依赖清单
-│
-├── Java示例/
-│   ├── HeartRateMonitorClient.java  # Java客户端 ⭐
-│   └── pom.xml                      # Maven配置
-│
-├── 辅助工具/
-│   └── mqtt_sender.py           # MQTT测试发送
-│
-└── output/                      # 输出目录
-    ├── models/                  # 训练模型
-    ├── logs/                    # 监测日志
-    └── results/                 # 检测结果
+heart_rate_model/
+├── rest_api.py              # REST API服务 ⭐
+├── mqtt_handler.py          # MQTT处理+异常检测
+├── lgbm_model.py            # LightGBM模型
+├── enhanced_detector.py     # 规则检测
+├── data_filter.py           # 数据清洗
+├── data_generator.py        # 数据生成
+├── integrated_system.py     # 模拟训练系统
+├── main.py                  # 统一主程序 ⭐
+├── utils.py                 # 工具模块
+├── config.py                # 系统配置
+├── requirements.txt         # 依赖清单
+├── database.py              # 数据库操作
+├── redis_storage.py         # Redis存储
+├── mqtt_sender.py           # MQTT测试发送
+└── output/                  # 输出目录
+    ├── models/              # 训练模型
+    ├── logs/                # 监测日志
+    └── results/             # 检测结果
+
+Java调用示例/
+├── HeartRateMonitorClient.java  # Java客户端 ⭐
+└── pom.xml                      # Maven配置
 ```
 
 ### 技术栈
@@ -889,36 +883,36 @@ v1/
 
 ```bash
 # 验证系统环境
-python utils.py verify
+cd heart_rate_model && python utils.py verify
 
 # 测试API接口
-python utils.py test
+cd heart_rate_model && python utils.py test
 
 # 查看帮助信息
-python utils.py help
+cd heart_rate_model && python utils.py help
 
 # 启动主程序（交互式菜单）
-python main.py
+cd heart_rate_model && python main.py
 ```
 
 ### 服务启动
 
 ```bash
 # 启动REST API服务
-python rest_api.py
+cd heart_rate_model && python rest_api.py
 
 # 训练模型
-python integrated_system.py --train
+cd heart_rate_model && python integrated_system.py --train
 
 # 模拟监测
-python integrated_system.py --monitor
+cd heart_rate_model && python integrated_system.py --monitor
 ```
 
 ### 测试工具
 
 ```bash
 # 发送MQTT测试数据
-python mqtt_sender.py
+cd heart_rate_model && python mqtt_sender.py
 ```
 
 ---
@@ -926,7 +920,7 @@ python mqtt_sender.py
 ## 📊 输出文件
 
 ```
-output/
+heart_rate_model/output/
 ├── models/
 │   └── lgbm_model.pkl              # 训练好的模型
 ├── logs/
@@ -944,14 +938,14 @@ output/
 **Q1: API服务无法启动？**
 ```bash
 # 检查依赖
-python utils.py verify
+cd heart_rate_model && python utils.py verify
 
 # 检查端口占用
 netstat -ano | findstr :5000
 ```
 
 **Q2: 无法连接MQTT服务器？**
-- 检查 `config.py` 中的MQTT配置
+- 检查 `heart_rate_model/config.py` 中的MQTT配置
 - 确认MQTT服务器地址和端口正确
 - 检查防火墙设置
 
@@ -961,18 +955,18 @@ netstat -ano | findstr :5000
 - 查看服务端日志
 
 **Q4: 未检测到异常？**
-- 确认已训练模型（运行 `python main.py` 选择模式1）
-- 检查 `config.py` 中的检测配置
+- 确认已训练模型（运行 `cd heart_rate_model && python main.py` 选择模式1）
+- 检查 `heart_rate_model/config.py` 中的检测配置
 - 查看数据是否正常接收
 
 ---
 
 ## 📞 获取帮助
 
-1. **查看完整帮助**: `python utils.py help`
-2. **系统验证**: `python utils.py verify`
-3. **API测试**: `python utils.py test`
-4. **交互式菜单**: `python main.py`
+1. **查看完整帮助**: `cd heart_rate_model && python utils.py help`
+2. **系统验证**: `cd heart_rate_model && python utils.py verify`
+3. **API测试**: `cd heart_rate_model && python utils.py test`
+4. **交互式菜单**: `cd heart_rate_model && python main.py`
 
 ---
 
@@ -980,7 +974,7 @@ netstat -ano | findstr :5000
 
 ### 添加新的API接口
 
-在 `rest_api.py` 中添加：
+在 `heart_rate_model/rest_api.py` 中添加：
 
 ```python
 @app.route('/api/your/endpoint', methods=['GET'])
@@ -993,7 +987,7 @@ def your_function():
 
 ### 扩展异常检测规则
 
-在 `enhanced_detector.py` 中的 `detect_anomalies` 方法添加新规则。
+在 `heart_rate_model/enhanced_detector.py` 中的 `detect_anomalies` 方法添加新规则。
 
 ### 自定义数据滤波
 
