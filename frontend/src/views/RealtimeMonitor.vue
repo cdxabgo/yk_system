@@ -1,52 +1,71 @@
 <template>
   <div class="realtime-container">
-    <!-- 顶部控制栏 -->
-    <el-card class="control-card">
-      <div class="control-row">
-        <div class="status-section">
-          <span class="status-label">实时推送连接：</span>
-          <el-tag :type="sseStatus === 'connected' ? 'success' : sseStatus === 'connecting' ? 'warning' : 'danger'">
-            <el-icon style="margin-right:4px">
-              <component :is="sseStatus === 'connected' ? 'CircleCheck' : sseStatus === 'connecting' ? 'Loading' : 'CircleClose'" />
-            </el-icon>
-            {{ sseStatusText }}
+    <!-- 两步操作指引 -->
+    <el-card class="guide-card">
+      <div class="guide-steps">
+        <!-- Step 1 -->
+        <div :class="['guide-step', sseStatus === 'connected' ? 'step-done' : 'step-pending']">
+          <div class="step-badge">1</div>
+          <div class="step-body">
+            <div class="step-title">连接实时推送</div>
+            <div class="step-desc">前端与 Java 后端建立 SSE 长连接，接收 ML 检测结果</div>
+          </div>
+          <el-tag
+            :type="sseStatus === 'connected' ? 'success' : sseStatus === 'connecting' ? 'warning' : 'info'"
+            size="small"
+            class="step-tag"
+          >
+            {{ sseStatus === 'connected' ? '✓ 已连接' : sseStatus === 'connecting' ? '连接中…' : '未连接' }}
           </el-tag>
-          <span class="clients-tip" v-if="sseStatus === 'connected'">已接收 {{ totalReceived }} 条数据</span>
-        </div>
-
-        <div class="action-section">
           <el-button
             :type="sseStatus === 'connected' ? 'danger' : 'primary'"
-            :icon="sseStatus === 'connected' ? 'VideoPause' : 'VideoPlay'"
+            size="small"
+            :loading="sseStatus === 'connecting'"
             @click="toggleSse"
           >
-            {{ sseStatus === 'connected' ? '断开连接' : '连接实时推送' }}
+            {{ sseStatus === 'connected' ? '断开' : '连接' }}
           </el-button>
+        </div>
 
-          <el-divider direction="vertical" />
+        <div class="guide-arrow">→</div>
 
-          <span class="mqtt-label">Python 监测服务：</span>
-          <el-tag :type="mqttStatus === 'running' ? 'success' : 'info'" size="small">
+        <!-- Step 2 -->
+        <div :class="['guide-step', mqttStatus === 'running' ? 'step-done' : sseStatus !== 'connected' ? 'step-disabled' : 'step-pending']">
+          <div class="step-badge">2</div>
+          <div class="step-body">
+            <div class="step-title">启动 MQTT 监测</div>
+            <div class="step-desc">通知 Python 连接 MQTT Broker，开始接收设备心率数据</div>
+            <div v-if="sseStatus !== 'connected'" class="step-hint">
+              ⚠ 请先完成第 1 步连接，否则数据无法展示
+            </div>
+          </div>
+          <el-tag
+            :type="mqttStatus === 'running' ? 'success' : 'info'"
+            size="small"
+            class="step-tag"
+          >
             {{ mqttStatus === 'running' ? '▶ 运行中' : '■ 未运行' }}
           </el-tag>
           <el-button
             v-if="mqttStatus !== 'running'"
             type="success"
             size="small"
-            :icon="'VideoPlay'"
             :loading="startingMqtt"
-            style="margin-left:8px"
+            :disabled="sseStatus !== 'connected'"
             @click="startMqttMonitor"
-          >启动 MQTT 监测</el-button>
+          >启动</el-button>
           <el-button
             v-else
             type="warning"
             size="small"
-            :icon="'VideoPause'"
-            style="margin-left:8px"
             @click="stopMqttMonitor"
           >停止</el-button>
         </div>
+      </div>
+
+      <!-- 已接收统计 -->
+      <div class="stats-row" v-if="sseStatus === 'connected'">
+        <span class="clients-tip">📡 SSE 已连接 &nbsp;|&nbsp; 已接收 {{ totalReceived }} 条数据</span>
       </div>
     </el-card>
 
@@ -60,7 +79,7 @@
                 <el-icon style="vertical-align:middle;margin-right:6px"><Odometer /></el-icon>
                 职工实时心率
               </span>
-              <el-button :icon="'RefreshRight'" size="small" @click="clearData">清空</el-button>
+              <el-button :icon="RefreshRight" size="small" @click="clearData">清空</el-button>
             </div>
           </template>
 
@@ -110,7 +129,7 @@
                 异常告警
                 <el-badge v-if="alerts.length > 0" :value="alerts.length" type="danger" style="margin-left:6px" />
               </span>
-              <el-button :icon="'Delete'" size="small" @click="clearAlerts">清空</el-button>
+              <el-button :icon="Delete" size="small" @click="clearAlerts">清空</el-button>
             </div>
           </template>
 
@@ -147,20 +166,16 @@
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Odometer, Warning, CircleCheck, CircleClose, Loading,
-  VideoPlay, VideoPause, RefreshRight, Delete
+  Odometer, Warning, RefreshRight, Delete
 } from '@element-plus/icons-vue'
 
 // ─── SSE 状态 ───────────────────────────────────────────────
 const sseStatus = ref('disconnected')  // 'connecting' | 'connected' | 'disconnected'
-const sseStatusText = computed(() => ({
-  connecting: '连接中...',
-  connected: '已连接',
-  disconnected: '未连接'
-}[sseStatus.value]))
 
 let eventSource = null
 const totalReceived = ref(0)
+// 是否由用户主动断开（防止 onerror 里的 setTimeout 自动重连）
+let intentionalDisconnect = false
 
 // ─── Python MQTT 监测服务状态 ────────────────────────────────
 const mqttStatus = ref('stopped')  // 'running' | 'stopped'
@@ -182,9 +197,24 @@ const DEFAULT_MQTT_TOPICS = ['/bdohs/data/#']
 const userCards = reactive({})
 const alerts = ref([])
 
+// ─── 日期解析工具 ─────────────────────────────────────────────
+/**
+ * 将 "YYYY-MM-DD HH:mm:ss" 或标准 ISO 字符串安全解析为 Date。
+ * 直接用 new Date("2025-12-23 10:30:00") 在 Safari/Firefox 下会得到 Invalid Date，
+ * 因为 ISO 8601 要求日期与时间之间用 "T" 分隔。
+ */
+function parseDataTime(str) {
+  if (!str) return new Date()
+  // 把空格分隔的日期时间转换为 ISO 8601 格式
+  const isoStr = String(str).replace(' ', 'T')
+  const d = new Date(isoStr)
+  return isNaN(d.getTime()) ? new Date() : d
+}
+
 // ─── SSE 连接 ────────────────────────────────────────────────
 function connectSse() {
   if (eventSource) return
+  intentionalDisconnect = false
   sseStatus.value = 'connecting'
   // /api/realtime/stream 经 Vite 代理转发至 Java 后端 8081
   eventSource = new EventSource('/api/realtime/stream')
@@ -205,14 +235,17 @@ function connectSse() {
     sseStatus.value = 'disconnected'
     eventSource.close()
     eventSource = null
-    // 3 秒后自动重连
-    setTimeout(() => {
-      if (sseStatus.value === 'disconnected') connectSse()
-    }, 3000)
+    // 仅当非主动断开时才自动重连（3 秒后重试）
+    if (!intentionalDisconnect) {
+      setTimeout(() => {
+        if (!intentionalDisconnect && sseStatus.value === 'disconnected') connectSse()
+      }, 3000)
+    }
   }
 }
 
 function disconnectSse() {
+  intentionalDisconnect = true   // 标记主动断开，阻止自动重连
   if (eventSource) {
     eventSource.close()
     eventSource = null
@@ -233,9 +266,7 @@ function handleRealtimeData(data) {
   const uid = String(data.userId ?? 'unknown')
   const hr = data.heartRate != null ? Number(data.heartRate) : null
   const isAbnormal = !!data.isAbnormal
-  const dataTime = data.dataTime
-    ? new Date(data.dataTime).toLocaleTimeString('zh-CN')
-    : new Date().toLocaleTimeString('zh-CN')
+  const dataTime = parseDataTime(data.dataTime).toLocaleTimeString('zh-CN')
 
   if (!userCards[uid]) {
     userCards[uid] = { heartRate: hr, dataTime, isAbnormal, anomalyType: data.anomalyType, history: [] }
@@ -286,7 +317,7 @@ async function startMqttMonitor() {
       ElMessage.warning(json.message || '启动失败')
     }
   } catch (_) {
-    ElMessage.error('无法连接到 Python REST API（请先运行 python main.py → 选项 7）')
+    ElMessage.error('无法连接到 Python REST API（请先运行 python rest_api.py）')
   } finally {
     startingMqtt.value = false
   }
@@ -341,13 +372,65 @@ onUnmounted(() => {
 <style scoped>
 .realtime-container { display: flex; flex-direction: column; gap: 16px; }
 
-.control-card :deep(.el-card__body) { padding: 12px 20px; }
-.control-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-.status-section { display: flex; align-items: center; gap: 10px; }
-.action-section { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.status-label, .mqtt-label { font-size: 13px; color: #606266; }
+/* ── 操作指引卡 ─────────────────────────────────────── */
+.guide-card :deep(.el-card__body) { padding: 14px 20px; }
+
+.guide-steps {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.guide-arrow {
+  font-size: 20px;
+  color: #c0c4cc;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.guide-step {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 2px solid #e4e7ed;
+  background: #fafafa;
+  transition: border-color 0.3s, background 0.3s;
+}
+.step-done    { border-color: #67c23a; background: #f0f9eb; }
+.step-pending { border-color: #409eff; background: #ecf5ff; }
+.step-disabled{ border-color: #e4e7ed; background: #fafafa; opacity: 0.7; }
+
+.step-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #409eff;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step-done .step-badge { background: #67c23a; }
+.step-disabled .step-badge { background: #c0c4cc; }
+
+.step-body { flex: 1; }
+.step-title { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 2px; }
+.step-desc  { font-size: 12px; color: #606266; }
+.step-hint  { font-size: 12px; color: #e6a23c; margin-top: 2px; }
+.step-tag   { flex-shrink: 0; }
+
+.stats-row { margin-top: 10px; border-top: 1px solid #f0f0f0; padding-top: 8px; }
 .clients-tip { font-size: 12px; color: #909399; }
 
+/* ── 数据区 ──────────────────────────────────────────── */
 .main-content { display: flex; gap: 16px; align-items: flex-start; }
 .cards-section { flex: 1; min-width: 0; }
 .alerts-section { width: 300px; flex-shrink: 0; }
@@ -368,29 +451,29 @@ onUnmounted(() => {
   transition: border-color 0.3s, box-shadow 0.3s;
   cursor: default;
 }
-.card-normal { background: #f0f9eb; border-color: #b3e19d; }
+.card-normal   { background: #f0f9eb; border-color: #b3e19d; }
 .card-abnormal { background: #fef0f0; border-color: #fbc4c4; animation: pulse 1.2s ease-in-out infinite; }
 
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(245,108,108,0); }
-  50% { box-shadow: 0 0 8px 3px rgba(245,108,108,0.4); }
+  50%       { box-shadow: 0 0 8px 3px rgba(245,108,108,0.4); }
 }
 
-.card-uid { font-size: 12px; color: #909399; margin-bottom: 4px; }
+.card-uid  { font-size: 12px; color: #909399; margin-bottom: 4px; }
 .card-rate { font-size: 36px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
-.rate-ok { color: #67c23a; }
+.rate-ok     { color: #67c23a; }
 .rate-danger { color: #f56c6c; }
 .rate-unit { font-size: 14px; font-weight: 400; margin-left: 2px; }
-.card-time { font-size: 11px; color: #c0c4cc; margin-bottom: 6px; }
+.card-time   { font-size: 11px; color: #c0c4cc; margin-bottom: 6px; }
 .card-status { margin-bottom: 8px; }
 
 .mini-trend { display: flex; align-items: flex-end; gap: 2px; height: 40px; overflow: hidden; }
-.trend-bar { display: inline-block; width: 5px; border-radius: 2px 2px 0 0; transition: height 0.3s; }
+.trend-bar  { display: inline-block; width: 5px; border-radius: 2px 2px 0 0; transition: height 0.3s; }
 
 .alert-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
 .alert-item:last-child { border-bottom: none; }
-.alert-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.alert-uid { font-size: 13px; font-weight: 600; }
+.alert-top  { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.alert-uid  { font-size: 13px; font-weight: 600; }
 .alert-time { font-size: 11px; color: #909399; margin-left: auto; }
 .alert-body { display: flex; align-items: center; gap: 8px; }
 .alert-rate { font-size: 16px; }

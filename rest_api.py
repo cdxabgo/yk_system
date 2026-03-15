@@ -17,8 +17,17 @@ from typing import Dict, List
 app = Flask(__name__)
 CORS(app)  # 允许跨域访问
 
+import urllib.parse
+
 # Java后端地址（用于将ML检测结果实时推送给前端）
-JAVA_BACKEND_URL = os.environ.get('JAVA_BACKEND_URL', 'http://localhost:8081')
+_raw_java_url = os.environ.get('JAVA_BACKEND_URL', 'http://localhost:8081').rstrip('/')
+_parsed = urllib.parse.urlparse(_raw_java_url)
+if _parsed.scheme not in ('http', 'https') or not _parsed.netloc:
+    raise ValueError(
+        f"JAVA_BACKEND_URL 格式无效: {_raw_java_url!r}。"
+        "请设置为合法的 HTTP/HTTPS 地址，例如 http://localhost:8081"
+    )
+JAVA_BACKEND_URL = _raw_java_url
 
 # 全局变量
 monitor_instance = None

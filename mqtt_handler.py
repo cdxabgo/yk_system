@@ -580,12 +580,17 @@ class MQTTHeartRateMonitor:
 
             # 触发数据回调推送异常检测结果
             if self.data_callback:
+                filtered = []
+                for hr, t in zip(heart_rates, time_list):
+                    try:
+                        filtered.append({'heart_rate': float(hr), 'time': str(t)})
+                    except (TypeError, ValueError):
+                        pass  # 忽略无法转换的心率值
                 self.data_callback({
                     'user_id': user_id,
                     'heart_rate': latest_hr,
                     'data_time': latest_time,
-                    'filtered_data': [{'heart_rate': float(hr), 'time': str(t)}
-                                      for hr, t in zip(heart_rates, time_list)],
+                    'filtered_data': filtered,
                     'ml_anomalies': anomaly_reasons if is_anomaly else [],
                     'rule_anomalies': {}
                 })
