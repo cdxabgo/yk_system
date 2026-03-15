@@ -8,13 +8,14 @@
         <result column="name" property="name"/>
         <result column="age" property="age"/>
         <result column="position" property="job"/>
+        <result column="working_years" property="workingYears"/>
         <result column="phone" property="contactInformation"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="list" resultMap="EmployeeMap">
-        SELECT id, name, age, position, phone, create_time, update_time
+        SELECT id, name, age, position, working_years, phone, create_time, update_time
         FROM employee
         <where>
             <if test="name != null and name != ''">
@@ -28,13 +29,13 @@
     </select>
 
     <select id="getById" resultMap="EmployeeMap">
-        SELECT id, name, age, position, phone, create_time, update_time
+        SELECT id, name, age, position, working_years, phone, create_time, update_time
         FROM employee WHERE id = #{id}
     </select>
 
     <insert id="insert" parameterType="Employee" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO employee (name, age, position, phone)
-        VALUES (#{name}, #{age}, #{job}, #{contactInformation})
+        INSERT INTO employee (name, age, position, working_years, phone)
+        VALUES (#{name}, #{age}, #{job}, #{workingYears}, #{contactInformation})
     </insert>
 
     <update id="update" parameterType="Employee">
@@ -43,6 +44,7 @@
             <if test="name != null and name != ''">name = #{name},</if>
             <if test="age != null">age = #{age},</if>
             <if test="job != null">position = #{job},</if>
+            <if test="workingYears != null">working_years = #{workingYears},</if>
             <if test="contactInformation != null">phone = #{contactInformation},</if>
         </set>
         WHERE id = #{id}

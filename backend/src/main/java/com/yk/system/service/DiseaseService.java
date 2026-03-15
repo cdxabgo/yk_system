@@ -5,8 +5,10 @@ import com.github.pagehelper.PageInfo;
 import com.yk.system.common.PageResult;
 import com.yk.system.entity.Disease;
 import com.yk.system.mapper.DiseaseMapper;
+import com.yk.system.mapper.EmployeeDiseaseRelationMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,6 +17,9 @@ public class DiseaseService {
 
     @Autowired
     private DiseaseMapper diseaseMapper;
+
+    @Autowired
+    private EmployeeDiseaseRelationMapper employeeDiseaseRelationMapper;
 
     public PageResult<Disease> list(int page, int size, String diseaseName, String diseaseType) {
         PageHelper.startPage(page, size);
@@ -35,7 +40,9 @@ public class DiseaseService {
         }
     }
 
+    @Transactional
     public void deleteById(Long id) {
+        employeeDiseaseRelationMapper.deleteByDiseaseId(id);
         diseaseMapper.deleteById(id);
     }
 }

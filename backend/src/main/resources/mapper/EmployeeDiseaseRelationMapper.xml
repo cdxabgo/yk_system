@@ -45,4 +45,8 @@
         DELETE FROM employee_disease_relation WHERE employee_id = #{employeeId}
     </delete>
 
+    <delete id="deleteByDiseaseId">
+        DELETE FROM employee_disease_relation WHERE disease_id = #{diseaseId}
+    </delete>
+
 </mapper>
