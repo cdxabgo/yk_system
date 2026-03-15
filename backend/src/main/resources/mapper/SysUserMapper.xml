@@ -12,7 +12,10 @@
     </resultMap>
 
     <select id="findByUsername" resultMap="UserMap">
-        SELECT * FROM sys_user WHERE username = #{username}
+        SELECT id, username, password, real_name, create_time
+        FROM `user`
+        WHERE username = #{username}
+        LIMIT 1
     </select>
 
 </mapper>

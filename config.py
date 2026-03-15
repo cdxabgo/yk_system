@@ -137,7 +137,7 @@ DATABASE_CONFIG = {
         'port': 3306,
         'user': 'root',
         'password': '123456',
-        'database': 'heart_rate_db',
+        'database': 'yk_demo',
         'charset': 'utf8mb4'
     }
 }

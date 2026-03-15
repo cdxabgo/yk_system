@@ -6,6 +6,9 @@ import com.yk.system.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,7 +24,7 @@ public class AuthService {
      */
     public Map<String, Object> login(String username, String password) {
         SysUser user = sysUserMapper.findByUsername(username);
-        if (user == null || !user.getPassword().equals(password)) {
+        if (user == null || !matchesPassword(password, user.getPassword())) {
             return null;
         }
         String token = UUID.randomUUID().toString().replace("-", "");
@@ -31,6 +34,27 @@ public class AuthService {
         data.put("username", username);
         data.put("realName", user.getRealName());
         return data;
+    }
+
+    private boolean matchesPassword(String rawPassword, String storedPassword) {
+        if (rawPassword == null || storedPassword == null) {
+            return false;
+        }
+        return md5(rawPassword).equalsIgnoreCase(storedPassword) || rawPassword.equals(storedPassword);
+    }
+
+    private String md5(String text) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(text.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("MD5算法不可用", e);
+        }
     }
 
     /**

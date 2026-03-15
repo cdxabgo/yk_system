@@ -20,11 +20,11 @@ public class AuthController {
         String username = body.get("username");
         String password = body.get("password");
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            return Result.error("用户名和密码不能为空");
+            return Result.error(400, "用户名和密码不能为空");
         }
         Map<String, Object> data = authService.login(username, password);
         if (data == null) {
-            return Result.error("用户名或密码错误");
+            return Result.error(401, "用户名或密码错误");
         }
         return Result.success(data);
     }

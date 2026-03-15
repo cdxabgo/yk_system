@@ -18,7 +18,7 @@
     <description>职工健康监测系统</description>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>21</java.version>
     </properties>
 
     <dependencies>
