@@ -26,4 +26,6 @@ public class EmployeeMonitorVO {
     private Integer abnormalCount;
     // 疾病数量
     private Integer diseaseCount;
+    // 当前连续异常开始时间（null 表示最新记录正常，无连续异常）
+    private LocalDateTime streakStartTime;
 }
