@@ -1,7 +1,7 @@
 package com.yk.system.service;
 
+import com.yk.system.common.JwtUtil;
 import com.yk.system.entity.SysUser;
-import com.yk.system.interceptor.AuthInterceptor;
 import com.yk.system.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,7 +11,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -19,16 +18,18 @@ public class AuthService {
     @Autowired
     private SysUserMapper sysUserMapper;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
-     * 登录验证，成功则返回 token，失败返回 null
+     * 登录验证，成功则返回包含 JWT token 的数据，失败返回 null
      */
     public Map<String, Object> login(String username, String password) {
         SysUser user = sysUserMapper.findByUsername(username);
         if (user == null || !matchesPassword(password, user.getPassword())) {
             return null;
         }
-        String token = UUID.randomUUID().toString().replace("-", "");
-        AuthInterceptor.TOKEN_MAP.put(token, username);
+        String token = jwtUtil.generateToken(username);
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
         data.put("username", username);
@@ -58,11 +59,10 @@ public class AuthService {
     }
 
     /**
-     * 登出，移除 token
+     * 登出（JWT 无状态，服务端无需处理；客户端清除 token 即可）
      */
     public void logout(String token) {
-        if (token != null) {
-            AuthInterceptor.TOKEN_MAP.remove(token);
-        }
+        // JWT 为无状态认证，登出由客户端清除 token 实现
     }
 }
+
