@@ -24,7 +24,7 @@ public class AuthController {
         }
         Map<String, Object> data = authService.login(username, password);
         if (data == null) {
-            return Result.error(401, "用户名或密码错误");
+            return Result.error(400, "用户名或密码错误");
         }
         return Result.success(data);
     }
