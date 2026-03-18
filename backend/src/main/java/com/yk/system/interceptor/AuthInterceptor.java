@@ -30,9 +30,9 @@ public class AuthInterceptor implements HandlerInterceptor {
                 return true;
             }
         }
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
-        Result<?> result = Result.error("未登录或登录已过期，请重新登录");
-        result.setCode(401);
+        Result<?> result = Result.error(401, "未登录或登录已过期，请重新登录");
         response.getWriter().write(new ObjectMapper().writeValueAsString(result));
         return false;
     }
