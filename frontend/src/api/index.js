@@ -31,5 +31,8 @@ export const heartRateApi = {
 }
 
 export const healthAdviceApi = {
-  generate: (employeeId) => request.get('/healthAdvice/generate', { params: { employeeId } })
+  generate: (employeeId) => request.get('/healthAdvice/generate', {
+    params: { employeeId },
+    timeout: 60000
+  })
 }
