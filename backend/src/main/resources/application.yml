@@ -27,4 +27,4 @@ jwt:
 
 heart-rate:
   simulator:
-    enabled: false
+    enabled: true
