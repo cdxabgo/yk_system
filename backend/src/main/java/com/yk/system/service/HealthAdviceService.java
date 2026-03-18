@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -116,7 +117,7 @@ public class HealthAdviceService {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(resolveDeepSeekApiUrl(deepseekApiUrl)))
-                    .timeout(Duration.ofSeconds(30))
+                    .timeout(Duration.ofSeconds(75))
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + deepseekApiKey.trim())
                     .POST(HttpRequest.BodyPublishers.ofString(requestJson, StandardCharsets.UTF_8))
@@ -133,6 +134,8 @@ public class HealthAdviceService {
                 throw new IllegalStateException("DeepSeek 返回内容为空");
             }
             return contentNode.asText().trim();
+        } catch (java.net.http.HttpTimeoutException e) {
+            throw new IllegalStateException("生成健康建议超时，请稍后重试", e);
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
