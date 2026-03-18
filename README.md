@@ -80,6 +80,25 @@ python rest_api.py
 # Python 服务在 http://localhost:5000 启动
 ```
 
+### 是否可以同时开启后端模拟器和 Python？
+
+可以。后端模拟器与 Python 服务可以并行运行，数据都会进入同一张心率表。
+
+- 默认配置下后端模拟器是关闭的（推荐用于真实联调）：
+  ```yaml
+  heart-rate:
+    simulator:
+      enabled: false
+  ```
+- 如需开启后端模拟器用于演示或兜底测试，可在 `backend/src/main/resources/application.yml` 改为：
+  ```yaml
+  heart-rate:
+    simulator:
+      enabled: true
+  ```
+
+> 建议：做 Python 真机链路联调时保持 `enabled: false`，避免模拟数据与真实数据混在一起影响判断。
+
 **第四步：从前端"实时心率监测"页面启动 MQTT 监测**
 
 访问 `http://localhost:3000` → 登录 → 点击左侧「**实时心率监测**」菜单：
