@@ -12,7 +12,7 @@ import os
 import urllib.request
 from datetime import datetime
 from mqtt_handler import MQTTHeartRateMonitor
-from typing import Dict, List
+from typing import Dict
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域访问
@@ -65,12 +65,16 @@ def notify_java_backend(payload: dict):
 
 # ==================== 辅助函数 ====================
 
-def monitor_worker(broker: str, port: int, topics: List[str]):
+def monitor_worker(poll_interval: int):
     """监测工作线程"""
     global monitor_instance, is_monitoring, monitoring_data
     
     try:
-        monitor_instance = MQTTHeartRateMonitor(mqtt_broker=broker, mqtt_port=port)
+        monitor_instance = MQTTHeartRateMonitor(
+            enable_redis=False,
+            enable_db=True,
+            poll_interval=poll_interval
+        )
         
         # 设置数据回调
         def on_data_callback(data_info):
@@ -124,10 +128,6 @@ def monitor_worker(broker: str, port: int, topics: List[str]):
         
         monitor_instance.set_data_callback(on_data_callback)
         
-        # 订阅主题
-        for topic in topics:
-            monitor_instance.subscribe(topic)
-        
         # 启动监测
         monitor_instance.start()
         
@@ -156,9 +156,7 @@ def start_monitoring():
     
     请求体:
     {
-        "broker": "localhost",
-        "port": 1883,
-        "topics": ["/bdohs/data/#"]
+        "poll_interval": 5
     }
     """
     global monitor_thread, is_monitoring, monitoring_data
@@ -169,10 +167,9 @@ def start_monitoring():
             'message': '监测已在运行中'
         }), 400
     
-    data = request.get_json()
-    broker = data.get('broker', 'localhost')
-    port = data.get('port', 1883)
-    topics = data.get('topics', ['/bdohs/data/#'])
+    from config import MONITOR_CONFIG
+    data = request.get_json() or {}
+    poll_interval = data.get('poll_interval', MONITOR_CONFIG.get('poll_interval', 5))
     
     # 重置监测数据
     monitoring_data = {
@@ -183,9 +180,7 @@ def start_monitoring():
         'total_records': 0,
         'anomalies': [],
         'config': {
-            'broker': broker,
-            'port': port,
-            'topics': topics
+            'poll_interval': poll_interval
         }
     }
     
@@ -193,7 +188,7 @@ def start_monitoring():
     is_monitoring = True
     monitor_thread = threading.Thread(
         target=monitor_worker,
-        args=(broker, port, topics),
+        args=(poll_interval,),
         daemon=True
     )
     monitor_thread.start()
@@ -202,9 +197,7 @@ def start_monitoring():
         'success': True,
         'message': '监测已启动',
         'config': {
-            'broker': broker,
-            'port': port,
-            'topics': topics
+            'poll_interval': poll_interval
         }
     })
 
@@ -307,12 +300,12 @@ def get_latest_anomaly():
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """获取当前配置"""
-    from config import MQTT_CONFIG, MODEL_CONFIG, FILTER_CONFIG
+    from config import MONITOR_CONFIG, MODEL_CONFIG, FILTER_CONFIG
     
     return jsonify({
         'success': True,
         'config': {
-            'mqtt': MQTT_CONFIG,
+            'monitor': MONITOR_CONFIG,
             'model': MODEL_CONFIG,
             'filter': FILTER_CONFIG
         }
@@ -322,35 +315,32 @@ def get_config():
 @app.route('/api/config/mqtt', methods=['POST'])
 def update_mqtt_config():
     """
-    更新MQTT配置（需要重启监测才生效）
+    更新轮询配置（兼容旧接口路径，需重启监测生效）
     
     请求体:
     {
-        "broker": "mqtt.example.com",
-        "port": 1883,
-        "username": "user",
-        "password": "pass",
-        "topics": ["/bdohs/data/#"]
+        "poll_interval": 5,
+        "poll_batch_size": 100
     }
     """
     data = request.get_json()
     
     # 验证必要参数
-    if 'broker' not in data:
+    if not data:
         return jsonify({
             'success': False,
-            'message': '缺少broker参数'
+            'message': '缺少配置参数'
         }), 400
     
     # 更新配置文件
     try:
-        from config import MQTT_CONFIG
-        MQTT_CONFIG.update(data)
+        from config import MONITOR_CONFIG
+        MONITOR_CONFIG.update(data)
         
         return jsonify({
             'success': True,
             'message': '配置已更新，请重启监测使其生效',
-            'config': MQTT_CONFIG
+            'config': MONITOR_CONFIG
         })
     except Exception as e:
         return jsonify({
@@ -387,47 +377,12 @@ def get_statistics():
 @app.route('/api/test/send', methods=['POST'])
 def test_send_data():
     """
-    测试接口：发送模拟数据到MQTT
-    
-    请求体:
-    {
-        "broker": "localhost",
-        "port": 1883,
-        "topic": "/bdohs/data/test",
-        "user_id": "TEST001",
-        "count": 18
-    }
+    测试接口（兼容保留）：MQTT模式已停用
     """
-    data = request.get_json()
-    
-    try:
-        from mqtt_sender import send_test_data
-        
-        broker = data.get('broker', 'localhost')
-        port = data.get('port', 1883)
-        topic = data.get('topic', '/bdohs/data/test')
-        user_id = data.get('user_id', 'TEST001')
-        count = data.get('count', 18)
-        
-        # 发送测试数据
-        send_test_data(
-            broker=broker,
-            port=port,
-            topic=topic,
-            user_id=user_id,
-            data_count=count
-        )
-        
-        return jsonify({
-            'success': True,
-            'message': f'已发送{count}条测试数据到主题{topic}'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'发送失败: {str(e)}'
-        }), 500
+    return jsonify({
+        'success': False,
+        'message': 'MQTT模式已停用，请直接向数据库 employee_heart_rate 写入测试数据'
+    }), 400
 
 
 # ==================== 错误处理 ====================
@@ -467,9 +422,9 @@ def start_api_server(host='0.0.0.0', port=5000, debug=False):
     print("  GET  /api/anomalies           - 获取异常记录")
     print("  GET  /api/anomalies/latest    - 获取最新异常")
     print("  GET  /api/config              - 获取配置")
-    print("  POST /api/config/mqtt         - 更新MQTT配置")
+    print("  POST /api/config/mqtt         - 更新轮询配置（兼容路径）")
     print("  GET  /api/statistics          - 获取统计信息")
-    print("  POST /api/test/send           - 发送测试数据")
+    print("  POST /api/test/send           - 测试接口（MQTT已停用）")
     print("=" * 60 + "\n")
     
     app.run(host=host, port=port, debug=debug, threaded=True)

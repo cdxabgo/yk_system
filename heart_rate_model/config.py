@@ -123,6 +123,8 @@ TRAIN_CONFIG = {
 MONITOR_CONFIG = {
     # 监测间隔
     'default_interval': 180,  # 默认监测间隔（秒）
+    'poll_interval': 5,  # 数据库轮询间隔（秒）
+    'poll_batch_size': 100,  # 每次轮询读取的最大记录数
     
     # 数据保存
     'save_monitoring_data': True,  # 是否保存监测数据
