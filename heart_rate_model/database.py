@@ -376,15 +376,17 @@ class DatabaseManager:
             with self.connection.cursor() as cursor:
                 sql = """
                     SELECT id, employee_id, heart_rate, measure_time, is_abnormal, source
-                    FROM employee_heart_rate
-                    WHERE employee_id = %s
-                    ORDER BY measure_time DESC, id DESC
-                    LIMIT %s
+                    FROM (
+                        SELECT id, employee_id, heart_rate, measure_time, is_abnormal, source
+                        FROM employee_heart_rate
+                        WHERE employee_id = %s
+                        ORDER BY measure_time DESC, id DESC
+                        LIMIT %s
+                    ) t
+                    ORDER BY measure_time ASC, id ASC
                 """
                 cursor.execute(sql, (employee_id, limit))
-                rows = cursor.fetchall()
-                rows.reverse()  # 转为时间升序，便于检测算法处理
-                return rows
+                return cursor.fetchall()
         except Exception as e:
             print(f"❌ 查询职工最近心率数据失败: {e}")
             return []

@@ -124,7 +124,6 @@ def run_mqtt_monitor():
         enable_db=True,
         poll_interval=poll_interval
     )
-    print("按 Ctrl+C 停止监测\n")
 
     try:
         monitor.start()

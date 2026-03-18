@@ -168,7 +168,14 @@ def start_monitoring():
         }), 400
     
     from config import MONITOR_CONFIG
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if data is None:
+        if request.data:
+            return jsonify({
+                'success': False,
+                'message': '请求体不是合法JSON'
+            }), 400
+        data = {}
     poll_interval = data.get('poll_interval', MONITOR_CONFIG.get('poll_interval', 5))
     
     # 重置监测数据

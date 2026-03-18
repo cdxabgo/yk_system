@@ -51,8 +51,10 @@ class MQTTHeartRateMonitor:
             poll_interval: 轮询间隔（秒）
             poll_batch_size: 每次轮询读取记录上限
         """
-        self.poll_interval = float(poll_interval or MONITOR_CONFIG.get('poll_interval', 5))
-        self.poll_batch_size = int(poll_batch_size or MONITOR_CONFIG.get('poll_batch_size', 100))
+        resolved_poll_interval = poll_interval if poll_interval is not None else MONITOR_CONFIG.get('poll_interval', 5)
+        resolved_poll_batch_size = poll_batch_size if poll_batch_size is not None else MONITOR_CONFIG.get('poll_batch_size', 100)
+        self.poll_interval = float(resolved_poll_interval)
+        self.poll_batch_size = int(resolved_poll_batch_size)
         self.running = False
         self.last_processed_id = 0
         
@@ -93,8 +95,8 @@ class MQTTHeartRateMonitor:
         
         # 数据缓存 - 按用户ID分组（仅用于临时缓存，主要存储在Redis）
         self.user_data_cache = {}  # {userId: [心率数据列表]}
-        self.batch_size = 18  # 连续检测最小新数据跨度
-        self.user_last_continuous_id = {}
+        self.continuous_batch_size = int(MONITOR_CONFIG.get('continuous_batch_size', 18))
+        self.records_since_last_continuous = {}
         
         # 统计信息
         self.total_received = 0
@@ -121,6 +123,7 @@ class MQTTHeartRateMonitor:
                 data_time = str(measure_time)
 
             self.total_received += 1
+            self.records_since_last_continuous[user_id] = self.records_since_last_continuous.get(user_id, 0) + 1
             print(f"\n📊 读取数据库数据 [用户{user_id}] 时间: {data_time} 心率: {heart_rate} bpm")
 
             if self.data_callback:
@@ -159,7 +162,6 @@ class MQTTHeartRateMonitor:
 
             heart_rates = np.array([float(item['heart_rate']) for item in history_data])
             time_list = [item['measure_time'] for item in history_data]
-            latest_record_id = int(history_data[-1]['id'])
             
             data_count = len(heart_rates)
             
@@ -172,14 +174,14 @@ class MQTTHeartRateMonitor:
             
             # 判断使用哪种检测模式（优先瞬时预警，按批次补充连续检测）
             min_continuous_data = 5  # 至少5条数据才进行连续异常检测
-            last_continuous_id = self.user_last_continuous_id.get(user_id, 0)
-            can_run_continuous = (latest_record_id - last_continuous_id) >= self.batch_size
+            new_record_count = self.records_since_last_continuous.get(user_id, 0)
+            can_run_continuous = new_record_count >= self.continuous_batch_size
             
             if data_count >= min_continuous_data and can_run_continuous:
                 # 模式1: 数据量多且累计了新的批次 - 连续心率异常检测
                 print(f"\n🔍 检测模式: 连续心率异常分析 (数据充足: {data_count}条)")
                 self.continuous_anomaly_detection(user_id, heart_rates, time_list)
-                self.user_last_continuous_id[user_id] = latest_record_id
+                self.records_since_last_continuous[user_id] = 0
             else:
                 # 模式2: 瞬时心率预警
                 print(f"\n⚡ 检测模式: 瞬时心率预警 (当前窗口: {data_count}条)")
@@ -595,7 +597,14 @@ class MQTTHeartRateMonitor:
                     continue
 
                 for record in records:
-                    self.last_processed_id = max(self.last_processed_id, int(record.get('id') or 0))
+                    record_id = record.get('id')
+                    if record_id is None:
+                        continue
+                    try:
+                        record_id = int(record_id)
+                    except (TypeError, ValueError):
+                        continue
+                    self.last_processed_id = max(self.last_processed_id, record_id)
                     self._handle_db_record(record)
             
         except KeyboardInterrupt:
