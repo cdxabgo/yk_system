@@ -6,6 +6,7 @@
 
 - [系统简介](#-系统简介)
 - [🆕 实时前后端对接（v3.0 新增）](#-实时前后端对接v30-新增)
+- [🗄️ Java后端数据库配置（v3.0 必读）](#️-java后端数据库配置v30-必读)
 - [v2.0 新增功能](#-v20-新增功能) 🆕
 - [5分钟快速开始](#-5分钟快速开始)
 - [Java调用指南](#-java调用指南) ⭐
@@ -30,13 +31,13 @@
 - 🆕 **Redis缓存** - 近10分钟数据存储，性能提升100倍
 - 🆕 **双模式检测** - 连续异常检测(数据≥5) + 瞬时预警(数据<5)
 - 🆕 **MySQL存储** - 设备状态、异常记录、每日统计
-- 🆕 **前后端实时推送** - SSE (Server-Sent Events) 无需独立 MQTT 服务
+- 🆕 **数据库轮询监控** - 前端10秒轮询 MySQL，无需 SSE 长连接
 
 ---
 
-## 🔥 实时前后端对接（v3.0 新增）
+## 🔥 实时前后端对接（v3.0）
 
-> **不需要申请额外的 MQTT 服务！** 前端通过 Java 后端的 SSE 长连接接收实时推送。
+> **架构更新（v3.0）：** 实时监控已从 SSE 长连接改为**数据库轮询**。前端每 10 秒轮询 Java 后端的 `/api/realtime/latest` 接口，数据由 Python ML 服务写入 MySQL，无需保持 SSE 连接。
 
 ### 整体数据流
 
@@ -51,9 +52,12 @@ Python ML 服务（heart_rate_model/mqtt_handler.py + heart_rate_model/rest_api.
   │  本机 HTTP POST /api/realtime/push
   ▼
 Java Spring Boot 后端（RealtimeController）
-  │  SSE 长连接推送
+  │  写入 MySQL employee_heart_rate 表
   ▼
-Vue.js 前端（RealtimeMonitor.vue）
+MySQL 数据库（yk_demo）
+  │  前端每10秒 GET /api/realtime/latest 轮询
+  ▼
+Vue.js 前端（RealtimeMonitor.vue / Dashboard.vue）
 ```
 
 ### 启动步骤
@@ -84,9 +88,8 @@ python rest_api.py
 
 访问 `http://localhost:3000` → 登录 → 点击左侧「**实时心率监测**」菜单：
 
-1. 点击「**连接实时推送**」 —— 前端与 Java 后端建立 SSE 长连接
-2. 点击「**启动 MQTT 监测**」 —— 通知 Python 连接 MQTT Broker，开始接收设备数据
-3. 数据将实时显示在页面上，异常心率自动高亮+告警
+1. 点击「**启动 MQTT 监测**」 —— 通知 Python 连接 MQTT Broker，开始接收设备数据
+2. 数据将自动写入数据库并每10秒刷新到页面，异常心率自动高亮+告警
 
 ### 配置 Java 后端地址（仅需改环境变量）
 
@@ -96,14 +99,75 @@ export JAVA_BACKEND_URL=http://your-java-host:8081
 cd heart_rate_model && python rest_api.py
 ```
 
-### 新增接口说明
+### 接口说明
 
 | 方向 | 地址 | 说明 |
 |------|------|------|
-| 前端 → Java | `GET /api/realtime/stream` | SSE 订阅（无需登录 Token） |
+| 前端 → Java | `GET /api/realtime/latest` | 轮询最新心率（每10秒，无需 Token） |
 | Python → Java | `POST /api/realtime/push` | ML 结果推送（内网调用，无需 Token） |
 | 前端 → Python | `POST /python/api/monitor/start` | 启动 MQTT 监测（Vite 代理） |
 | 前端 → Python | `POST /python/api/monitor/stop`  | 停止 MQTT 监测 |
+
+---
+
+## 🗄️ Java后端数据库配置（v3.0 必读）
+
+> **v3.0 架构变更：** 实时心率监控已从 SSE 长连接推送改为**数据库轮询**。前端每 10 秒调用 `/api/realtime/latest` 接口，Java 后端直接从 MySQL 读取最新心率记录。因此，**本地部署必须正确初始化或迁移 `yk_demo` 数据库。**
+
+### 全新部署（首次安装）
+
+```sql
+-- 第一步：创建数据库
+CREATE DATABASE IF NOT EXISTS yk_demo DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 第二步：执行初始化脚本（建表 + 插入样本数据）
+-- 在 MySQL 客户端中运行：
+source backend/src/main/resources/sql/init.sql
+```
+
+或使用命令行：
+
+```bash
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS yk_demo DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p yk_demo < backend/src/main/resources/sql/init.sql
+```
+
+**初始化后将创建以下 5 张表：**
+
+| 表名 | 说明 |
+|------|------|
+| `user` | 系统用户（默认账号 admin / admin123） |
+| `employee` | 职工信息 |
+| `employee_heart_rate` | 心率记录（含3个查询索引） |
+| `disease` | 疾病信息 |
+| `employee_disease_relation` | 职工-疾病关联 |
+
+### 从旧版升级（已有数据库）
+
+如果你在 v3.0 合并之前已有本地部署，需要对 `yk_demo` 数据库执行迁移脚本，主要变更为：
+
+- `employee_heart_rate` 表新增 `source` 列（设备ID/数据来源）
+- 新增复合索引 `idx_employee_abnormal_time`（班中监控连续异常检测必需）
+
+```bash
+# 建议先备份
+mysqldump -u root -p yk_demo > yk_demo_backup_$(date +%Y%m%d).sql
+
+# 执行迁移脚本
+mysql -u root -p yk_demo < backend/src/main/resources/sql/migration_v3.sql
+```
+
+### Java后端数据库连接配置
+
+默认配置位于 `backend/src/main/resources/application.yml`，如需修改请编辑以下字段：
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/yk_demo?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+```
 
 ---
 
