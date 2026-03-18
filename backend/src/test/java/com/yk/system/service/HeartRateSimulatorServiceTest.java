@@ -3,7 +3,6 @@ package com.yk.system.service;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -15,7 +14,8 @@ class HeartRateSimulatorServiceTest {
 
         assertNotNull(annotation);
         assertEquals("heart-rate.simulator", annotation.prefix());
-        assertArrayEquals(new String[]{"enabled"}, annotation.name());
+        assertEquals(1, annotation.name().length);
+        assertEquals("enabled", annotation.name()[0]);
         assertEquals("true", annotation.havingValue());
     }
 }
