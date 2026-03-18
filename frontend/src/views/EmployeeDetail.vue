@@ -150,7 +150,7 @@
               layout="total, prev, pager, next"
               :total="alarmTotal"
               @current-change="loadAlarms"
-              small
+              size="small"
             />
           </div>
         </el-card>
