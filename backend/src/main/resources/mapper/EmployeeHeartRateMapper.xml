@@ -70,21 +70,36 @@
         DELETE FROM employee_heart_rate WHERE id = #{id}
     </delete>
 
-    <!-- 查询每位职工的最新一条心率记录，供前端10秒轮询使用 -->
+    <!-- 查询每位职工的最新ML检测结果，供前端10秒轮询使用
+         数据来源：ml_detection_result 表（由 Python ML 模型写入）
+         若该表无数据，回退到 employee_heart_rate 表以保证页面始终有内容展示 -->
     <select id="getLatestPerEmployee" resultType="HeartRateLatestVO">
         SELECT
-            e.id AS userId,
-            e.name AS employeeName,
-            hr.heart_rate AS heartRate,
-            hr.is_abnormal AS isAbnormal,
-            hr.measure_time AS dataTime,
-            CASE
-                WHEN hr.is_abnormal = 1 AND hr.heart_rate > 100 THEN '心率过高'
-                WHEN hr.is_abnormal = 1 AND hr.heart_rate &lt; 60  THEN '心率过低'
-                WHEN hr.is_abnormal = 1                          THEN '心律异常'
-                ELSE NULL
-            END AS anomalyType
+            e.id           AS userId,
+            e.name         AS employeeName,
+            COALESCE(mr.heart_rate,  hr.heart_rate)  AS heartRate,
+            COALESCE(mr.is_abnormal, hr.is_abnormal) AS isAbnormal,
+            COALESCE(mr.detect_time, hr.measure_time) AS dataTime,
+            COALESCE(
+                mr.anomaly_type,
+                CASE
+                    WHEN hr.is_abnormal = 1 AND hr.heart_rate &gt; 100 THEN '心率过高'
+                    WHEN hr.is_abnormal = 1 AND hr.heart_rate &lt; 60  THEN '心率过低'
+                    WHEN hr.is_abnormal = 1                           THEN '心律异常'
+                    ELSE NULL
+                END
+            ) AS anomalyType
         FROM employee e
+        LEFT JOIN (
+            SELECT mr1.*
+            FROM ml_detection_result mr1
+            INNER JOIN (
+                SELECT employee_id, MAX(detect_time) AS max_time
+                FROM ml_detection_result
+                GROUP BY employee_id
+            ) mr2 ON mr1.employee_id = mr2.employee_id
+                  AND mr1.detect_time = mr2.max_time
+        ) mr ON e.id = mr.employee_id
         LEFT JOIN (
             SELECT hr1.*
             FROM employee_heart_rate hr1
@@ -92,7 +107,8 @@
                 SELECT employee_id, MAX(measure_time) AS max_time
                 FROM employee_heart_rate
                 GROUP BY employee_id
-            ) hr2 ON hr1.employee_id = hr2.employee_id AND hr1.measure_time = hr2.max_time
+            ) hr2 ON hr1.employee_id = hr2.employee_id
+                  AND hr1.measure_time = hr2.max_time
         ) hr ON e.id = hr.employee_id
         ORDER BY e.id
     </select>

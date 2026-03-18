@@ -326,6 +326,24 @@ class DatabaseManager:
             return []
 
 
+# ML检测结果表建表语句（新增，供 db_monitor.py 使用）
+CREATE_ML_RESULT_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS ml_detection_result (
+    id               BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    employee_id      BIGINT      NOT NULL                           COMMENT '职工ID（关联employee表）',
+    heart_rate       INT         NOT NULL                           COMMENT '检测时使用的心率值（次/分钟）',
+    is_abnormal      TINYINT(1)  NOT NULL DEFAULT 0                 COMMENT '是否异常 0正常 1异常',
+    anomaly_type     VARCHAR(128)                                   COMMENT '异常类型描述（ML+规则联合判断）',
+    source_record_id BIGINT                                         COMMENT '来源心率记录ID（关联employee_heart_rate.id）',
+    detect_time      DATETIME    NOT NULL                           COMMENT '检测时间',
+    created_at       DATETIME    DEFAULT CURRENT_TIMESTAMP          COMMENT '记录创建时间',
+    INDEX idx_employee_id          (employee_id),
+    INDEX idx_detect_time          (detect_time),
+    INDEX idx_employee_detect_time (employee_id, detect_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ML模型心率检测结果表'
+"""
+
+
 # 创建数据库表的SQL语句（首次使用时执行）
 CREATE_TABLES_SQL = """
 -- 设备状态表
@@ -395,10 +413,14 @@ def init_database():
             for statement in CREATE_TABLES_SQL.split(';'):
                 if statement.strip():
                     cursor.execute(statement)
+
+            # 创建 ML 检测结果表
+            cursor.execute(CREATE_ML_RESULT_TABLE_SQL)
         
         connection.commit()
         connection.close()
         print("✅ 数据库表初始化成功")
+        print("   创建/确认的表: device_status, anomaly_records, daily_anomaly_stats, ml_detection_result")
         return True
         
     except Exception as e:

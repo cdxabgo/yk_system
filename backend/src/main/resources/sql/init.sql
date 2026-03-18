@@ -45,6 +45,21 @@ CREATE TABLE IF NOT EXISTS `disease` (
     `create_time`  DATETIME     DEFAULT CURRENT_TIMESTAMP          COMMENT '创建时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='疾病信息表';
 
+-- ML模型心率检测结果表（由 Python ML 模型写入，Java 后端读取供前端展示）
+CREATE TABLE IF NOT EXISTS `ml_detection_result` (
+    `id`               BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    `employee_id`      BIGINT       NOT NULL                           COMMENT '职工ID（关联employee表）',
+    `heart_rate`       INT          NOT NULL                           COMMENT '检测时使用的心率值（次/分钟）',
+    `is_abnormal`      TINYINT(1)   NOT NULL DEFAULT 0                 COMMENT '是否异常 0正常 1异常',
+    `anomaly_type`     VARCHAR(128)                                    COMMENT '异常类型（由ML+规则联合判断）',
+    `source_record_id` BIGINT                                          COMMENT '来源心率记录ID（关联employee_heart_rate.id）',
+    `detect_time`      DATETIME     NOT NULL                           COMMENT '检测时间',
+    `created_at`       DATETIME     DEFAULT CURRENT_TIMESTAMP          COMMENT '记录创建时间',
+    INDEX `idx_employee_id`          (`employee_id`),
+    INDEX `idx_detect_time`          (`detect_time`),
+    INDEX `idx_employee_detect_time` (`employee_id`, `detect_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ML模型心率检测结果表';
+
 -- 职工疾病关联表
 CREATE TABLE IF NOT EXISTS `employee_disease_relation` (
     `id`             BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
@@ -97,3 +112,14 @@ INSERT INTO `employee_heart_rate` (`employee_id`, `heart_rate`, `measure_time`, 
 (8, 80, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
 (8, 83, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
 (8, 86, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator');
+
+-- 初始 ML 检测结果（对应上方心率记录的最新一条，供前端初次加载时展示）
+INSERT INTO `ml_detection_result` (`employee_id`, `heart_rate`, `is_abnormal`, `anomaly_type`, `source_record_id`, `detect_time`) VALUES
+(1, 78,  0, NULL,       NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(2, 91,  0, NULL,       NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(3, 70,  0, NULL,       NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(4, 160, 1, '心率过快', NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(5, 82,  0, NULL,       NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(6, 45,  1, '心率过慢', NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(7, 74,  0, NULL,       NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE)),
+(8, 86,  0, NULL,       NULL, DATE_SUB(NOW(), INTERVAL 2 MINUTE));

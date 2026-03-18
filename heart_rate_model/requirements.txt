@@ -10,15 +10,11 @@ lightgbm>=3.2.0
 # 可视化
 matplotlib>=3.4.0
 
-# MQTT通信
-paho-mqtt>=1.6.0
-
 # REST API
 flask>=2.3.0
 flask-cors>=4.0.0
 
-# 数据库和缓存
-redis>=4.5.0
+# 数据库（yk_demo MySQL 连接，无需 Redis/MQTT）
 pymysql>=1.0.0
 sqlalchemy>=2.0.0
 

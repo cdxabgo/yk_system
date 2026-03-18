@@ -1,6 +1,8 @@
 """
 REST API服务 - 心率监测系统对外接口
 提供HTTP接口供Java等外部程序调用
+数据来源：直接从 yk_demo.employee_heart_rate 表读取，
+          ML检测结果写入 yk_demo.ml_detection_result 表
 """
 
 from flask import Flask, request, jsonify
@@ -11,7 +13,7 @@ import json
 import os
 import urllib.request
 from datetime import datetime
-from mqtt_handler import MQTTHeartRateMonitor
+from db_monitor import DbHeartRateMonitor
 from typing import Dict, List
 
 app = Flask(__name__)
@@ -19,7 +21,7 @@ CORS(app)  # 允许跨域访问
 
 import urllib.parse
 
-# Java后端地址（用于将ML检测结果实时推送给前端）
+# Java后端地址（可选：用于将ML检测结果实时推送给前端SSE通道）
 _raw_java_url = os.environ.get('JAVA_BACKEND_URL', 'http://localhost:8081').rstrip('/')
 _parsed = urllib.parse.urlparse(_raw_java_url)
 if _parsed.scheme not in ('http', 'https') or not _parsed.netloc:
@@ -30,7 +32,7 @@ if _parsed.scheme not in ('http', 'https') or not _parsed.netloc:
 JAVA_BACKEND_URL = _raw_java_url
 
 # 全局变量
-monitor_instance = None
+monitor_instance: DbHeartRateMonitor = None
 monitor_thread = None
 is_monitoring = False
 monitoring_data = {
@@ -65,72 +67,62 @@ def notify_java_backend(payload: dict):
 
 # ==================== 辅助函数 ====================
 
-def monitor_worker(broker: str, port: int, topics: List[str]):
-    """监测工作线程"""
+def on_detection_result(result: dict):
+    """DbHeartRateMonitor 检测结果回调"""
+    global monitoring_data
+
+    monitoring_data['total_records'] += 1
+
+    is_abnormal = result.get('is_abnormal', False)
+    anomaly_type = result.get('anomaly_type')
+
+    # 构造推送给 Java 后端的实时数据包（可选推送）
+    push_payload = {
+        'userId': str(result.get('employee_id', 'unknown')),
+        'heartRate': result.get('heart_rate'),
+        'dataTime': result.get('detect_time', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+        'isAbnormal': is_abnormal,
+        'anomalyType': anomaly_type,
+        'severity': 'high' if is_abnormal else 'normal'
+    }
+    notify_java_backend(push_payload)
+
+    # 更新内存监控数据
+    monitoring_data['latest_data'].append(push_payload)
+    if len(monitoring_data['latest_data']) > 10:
+        monitoring_data['latest_data'] = monitoring_data['latest_data'][-10:]
+
+    if is_abnormal:
+        anomaly_record = {
+            'timestamp': datetime.now().isoformat(),
+            'employee_id': result.get('employee_id'),
+            'heart_rate': result.get('heart_rate'),
+            'anomaly_type': anomaly_type,
+        }
+        monitoring_data['anomalies'].append(anomaly_record)
+        monitoring_data['anomaly_count'] += 1
+        # 只保留最近50条异常
+        if len(monitoring_data['anomalies']) > 50:
+            monitoring_data['anomalies'] = monitoring_data['anomalies'][-50:]
+
+
+def monitor_worker(interval: int, window_size: int):
+    """监测工作线程（基于数据库轮询）"""
     global monitor_instance, is_monitoring, monitoring_data
-    
+
     try:
-        monitor_instance = MQTTHeartRateMonitor(mqtt_broker=broker, mqtt_port=port)
-        
-        # 设置数据回调
-        def on_data_callback(data_info):
-            """数据回调处理"""
-            monitoring_data['latest_data'] = data_info.get('filtered_data', [])[-10:]  # 保留最新10条
-            monitoring_data['total_records'] += len(data_info.get('filtered_data', []))
-
-            ml_anomalies = data_info.get('ml_anomalies') or []
-            rule_anomalies = data_info.get('rule_anomalies') or {}
-            is_abnormal = bool(ml_anomalies or rule_anomalies)
-
-            # 构造异常类型描述
-            anomaly_type = None
-            if is_abnormal:
-                parts = []
-                if ml_anomalies:
-                    parts.append(', '.join(str(a) for a in ml_anomalies))
-                if rule_anomalies and isinstance(rule_anomalies, dict):
-                    rule_keys = [k for k, v in rule_anomalies.items() if v]
-                    if rule_keys:
-                        parts.append(', '.join(rule_keys))
-                elif rule_anomalies:
-                    parts.append(str(rule_anomalies))
-                anomaly_type = '; '.join(parts) if parts else '异常'
-
-            # 构造推送给 Java 后端的实时数据包
-            push_payload = {
-                'userId': data_info.get('user_id', 'unknown'),
-                'heartRate': data_info.get('heart_rate'),
-                'dataTime': data_info.get('data_time', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
-                'isAbnormal': is_abnormal,
-                'anomalyType': anomaly_type,
-                'severity': 'high' if is_abnormal else 'normal'
-            }
-            notify_java_backend(push_payload)
-
-            # 检测异常
-            if is_abnormal:
-                anomaly_record = {
-                    'timestamp': datetime.now().isoformat(),
-                    'user_id': data_info.get('user_id', 'unknown'),
-                    'ml_anomalies': ml_anomalies,
-                    'rule_anomalies': rule_anomalies
-                }
-                monitoring_data['anomalies'].append(anomaly_record)
-                monitoring_data['anomaly_count'] += 1
-
-                # 只保留最近50条异常
-                if len(monitoring_data['anomalies']) > 50:
-                    monitoring_data['anomalies'] = monitoring_data['anomalies'][-50:]
-        
-        monitor_instance.set_data_callback(on_data_callback)
-        
-        # 订阅主题
-        for topic in topics:
-            monitor_instance.subscribe(topic)
-        
-        # 启动监测
+        from config import DB_MONITOR_CONFIG
+        monitor_instance = DbHeartRateMonitor(
+            interval=interval,
+            window_size=window_size,
+        )
+        monitor_instance.set_result_callback(on_detection_result)
         monitor_instance.start()
-        
+
+        # 阻塞直到停止标志
+        while is_monitoring:
+            time.sleep(1)
+
     except Exception as e:
         monitoring_data['status'] = 'error'
         monitoring_data['error_message'] = str(e)
@@ -144,7 +136,7 @@ def health_check():
     """健康检查接口"""
     return jsonify({
         'status': 'ok',
-        'service': '心率监测系统',
+        'service': '心率监测系统（数据库模式）',
         'timestamp': datetime.now().isoformat()
     })
 
@@ -152,28 +144,27 @@ def health_check():
 @app.route('/api/monitor/start', methods=['POST'])
 def start_monitoring():
     """
-    启动监测
-    
-    请求体:
+    启动监测（从数据库读取心率数据，ML检测后写入 ml_detection_result）
+
+    请求体（可选，覆盖默认配置）:
     {
-        "broker": "localhost",
-        "port": 1883,
-        "topics": ["/bdohs/data/#"]
+        "interval": 10,
+        "window_size": 30
     }
     """
     global monitor_thread, is_monitoring, monitoring_data
-    
+
     if is_monitoring:
         return jsonify({
             'success': False,
             'message': '监测已在运行中'
         }), 400
-    
-    data = request.get_json()
-    broker = data.get('broker', 'localhost')
-    port = data.get('port', 1883)
-    topics = data.get('topics', ['/bdohs/data/#'])
-    
+
+    from config import DB_MONITOR_CONFIG
+    data = request.get_json() or {}
+    interval = data.get('interval', DB_MONITOR_CONFIG.get('interval', 10))
+    window_size = data.get('window_size', DB_MONITOR_CONFIG.get('window_size', 30))
+
     # 重置监测数据
     monitoring_data = {
         'status': 'running',
@@ -183,28 +174,25 @@ def start_monitoring():
         'total_records': 0,
         'anomalies': [],
         'config': {
-            'broker': broker,
-            'port': port,
-            'topics': topics
+            'interval': interval,
+            'window_size': window_size,
         }
     }
-    
-    # 启动监测线程
+
     is_monitoring = True
     monitor_thread = threading.Thread(
         target=monitor_worker,
-        args=(broker, port, topics),
+        args=(interval, window_size),
         daemon=True
     )
     monitor_thread.start()
-    
+
     return jsonify({
         'success': True,
-        'message': '监测已启动',
+        'message': '监测已启动（数据库模式）',
         'config': {
-            'broker': broker,
-            'port': port,
-            'topics': topics
+            'interval': interval,
+            'window_size': window_size,
         }
     })
 
@@ -213,19 +201,19 @@ def start_monitoring():
 def stop_monitoring():
     """停止监测"""
     global monitor_instance, is_monitoring, monitoring_data
-    
+
     if not is_monitoring:
         return jsonify({
             'success': False,
             'message': '监测未运行'
         }), 400
-    
+
     if monitor_instance:
         monitor_instance.stop()
-    
+
     is_monitoring = False
     monitoring_data['status'] = 'stopped'
-    
+
     return jsonify({
         'success': True,
         'message': '监测已停止'
@@ -248,17 +236,35 @@ def get_status():
     })
 
 
+@app.route('/api/monitor/detect-once', methods=['POST'])
+def detect_once():
+    """
+    立即对所有职工执行一次检测（不需要启动持续监测）
+    """
+    try:
+        from config import DB_MONITOR_CONFIG
+        m = DbHeartRateMonitor(
+            interval=DB_MONITOR_CONFIG.get('interval', 10),
+            window_size=DB_MONITOR_CONFIG.get('window_size', 30),
+        )
+        m.run_once()
+        m.db.close()
+        return jsonify({'success': True, 'message': '单次检测完成，结果已写入 ml_detection_result 表'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'检测失败: {str(e)}'}), 500
+
+
 @app.route('/api/data/latest', methods=['GET'])
 def get_latest_data():
     """
-    获取最新数据
-    
+    获取内存中的最新检测数据
+
     查询参数:
     - limit: 返回数据条数（默认10）
     """
     limit = request.args.get('limit', 10, type=int)
     latest = monitoring_data.get('latest_data', [])[-limit:]
-    
+
     return jsonify({
         'success': True,
         'data': latest,
@@ -270,14 +276,14 @@ def get_latest_data():
 @app.route('/api/anomalies', methods=['GET'])
 def get_anomalies():
     """
-    获取异常记录
-    
+    获取异常记录（内存缓存）
+
     查询参数:
     - limit: 返回记录条数（默认20）
     """
     limit = request.args.get('limit', 20, type=int)
     anomalies = monitoring_data.get('anomalies', [])[-limit:]
-    
+
     return jsonify({
         'success': True,
         'data': anomalies,
@@ -290,14 +296,14 @@ def get_anomalies():
 def get_latest_anomaly():
     """获取最新的异常记录"""
     anomalies = monitoring_data.get('anomalies', [])
-    
+
     if not anomalies:
         return jsonify({
             'success': True,
             'data': None,
             'message': '暂无异常记录'
         })
-    
+
     return jsonify({
         'success': True,
         'data': anomalies[-1]
@@ -307,56 +313,16 @@ def get_latest_anomaly():
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """获取当前配置"""
-    from config import MQTT_CONFIG, MODEL_CONFIG, FILTER_CONFIG
-    
+    from config import DB_MONITOR_CONFIG, MODEL_CONFIG, FILTER_CONFIG
+
     return jsonify({
         'success': True,
         'config': {
-            'mqtt': MQTT_CONFIG,
+            'db_monitor': DB_MONITOR_CONFIG,
             'model': MODEL_CONFIG,
             'filter': FILTER_CONFIG
         }
     })
-
-
-@app.route('/api/config/mqtt', methods=['POST'])
-def update_mqtt_config():
-    """
-    更新MQTT配置（需要重启监测才生效）
-    
-    请求体:
-    {
-        "broker": "mqtt.example.com",
-        "port": 1883,
-        "username": "user",
-        "password": "pass",
-        "topics": ["/bdohs/data/#"]
-    }
-    """
-    data = request.get_json()
-    
-    # 验证必要参数
-    if 'broker' not in data:
-        return jsonify({
-            'success': False,
-            'message': '缺少broker参数'
-        }), 400
-    
-    # 更新配置文件
-    try:
-        from config import MQTT_CONFIG
-        MQTT_CONFIG.update(data)
-        
-        return jsonify({
-            'success': True,
-            'message': '配置已更新，请重启监测使其生效',
-            'config': MQTT_CONFIG
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'配置更新失败: {str(e)}'
-        }), 500
 
 
 @app.route('/api/statistics', methods=['GET'])
@@ -368,10 +334,10 @@ def get_statistics():
         running_time = (datetime.now() - start_dt).total_seconds()
     else:
         running_time = 0
-    
+
     total_records = monitoring_data.get('total_records', 0)
     anomaly_count = monitoring_data.get('anomaly_count', 0)
-    
+
     return jsonify({
         'success': True,
         'statistics': {
@@ -382,52 +348,6 @@ def get_statistics():
             'records_per_minute': (total_records / running_time * 60) if running_time > 0 else 0
         }
     })
-
-
-@app.route('/api/test/send', methods=['POST'])
-def test_send_data():
-    """
-    测试接口：发送模拟数据到MQTT
-    
-    请求体:
-    {
-        "broker": "localhost",
-        "port": 1883,
-        "topic": "/bdohs/data/test",
-        "user_id": "TEST001",
-        "count": 18
-    }
-    """
-    data = request.get_json()
-    
-    try:
-        from mqtt_sender import send_test_data
-        
-        broker = data.get('broker', 'localhost')
-        port = data.get('port', 1883)
-        topic = data.get('topic', '/bdohs/data/test')
-        user_id = data.get('user_id', 'TEST001')
-        count = data.get('count', 18)
-        
-        # 发送测试数据
-        send_test_data(
-            broker=broker,
-            port=port,
-            topic=topic,
-            user_id=user_id,
-            data_count=count
-        )
-        
-        return jsonify({
-            'success': True,
-            'message': f'已发送{count}条测试数据到主题{topic}'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'发送失败: {str(e)}'
-        }), 500
 
 
 # ==================== 错误处理 ====================
@@ -453,27 +373,27 @@ def internal_error(error):
 def start_api_server(host='0.0.0.0', port=5000, debug=False):
     """启动API服务器"""
     print("\n" + "=" * 60)
-    print("🚀 心率监测系统 REST API 服务")
+    print("🚀 心率监测系统 REST API 服务（数据库模式）")
     print("=" * 60)
     print(f"📡 服务地址: http://{host}:{port}")
     print(f"📖 API文档: http://{host}:{port}/api/health")
     print("=" * 60)
     print("\n可用接口:")
-    print("  GET  /api/health              - 健康检查")
-    print("  POST /api/monitor/start       - 启动监测")
-    print("  POST /api/monitor/stop        - 停止监测")
-    print("  GET  /api/monitor/status      - 获取状态")
-    print("  GET  /api/data/latest         - 获取最新数据")
-    print("  GET  /api/anomalies           - 获取异常记录")
-    print("  GET  /api/anomalies/latest    - 获取最新异常")
-    print("  GET  /api/config              - 获取配置")
-    print("  POST /api/config/mqtt         - 更新MQTT配置")
-    print("  GET  /api/statistics          - 获取统计信息")
-    print("  POST /api/test/send           - 发送测试数据")
+    print("  GET  /api/health                  - 健康检查")
+    print("  POST /api/monitor/start           - 启动监测（DB模式）")
+    print("  POST /api/monitor/stop            - 停止监测")
+    print("  GET  /api/monitor/status          - 获取状态")
+    print("  POST /api/monitor/detect-once     - 立即执行单次检测")
+    print("  GET  /api/data/latest             - 获取最新数据（内存）")
+    print("  GET  /api/anomalies               - 获取异常记录（内存）")
+    print("  GET  /api/anomalies/latest        - 获取最新异常（内存）")
+    print("  GET  /api/config                  - 获取配置")
+    print("  GET  /api/statistics              - 获取统计信息")
     print("=" * 60 + "\n")
-    
+
     app.run(host=host, port=port, debug=debug, threaded=True)
 
 
 if __name__ == '__main__':
     start_api_server(host='0.0.0.0', port=5000, debug=True)
+

@@ -129,6 +129,14 @@ MONITOR_CONFIG = {
     'max_cache_size': 60  # 最大缓存数据条数
 }
 
+# ==================== 数据库监测配置 ====================
+# 替代 MQTT 监测，从 employee_heart_rate 表读取数据，
+# 经 ML 模型检测后将结果写入 ml_detection_result 表
+DB_MONITOR_CONFIG = {
+    'interval': 10,       # 轮询间隔（秒），每隔此时长对所有职工执行一次检测
+    'window_size': 30,    # 滑动窗口大小（取每位职工最近 N 条心率记录参与检测）
+}
+
 # ==================== 数据库配置 ====================
 DATABASE_CONFIG = {
     # MySQL配置
