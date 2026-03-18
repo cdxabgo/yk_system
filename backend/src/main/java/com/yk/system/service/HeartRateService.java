@@ -5,6 +5,7 @@ import com.github.pagehelper.PageInfo;
 import com.yk.system.common.PageResult;
 import com.yk.system.entity.EmployeeHeartRate;
 import com.yk.system.entity.EmployeeMonitorVO;
+import com.yk.system.entity.HeartRateLatestVO;
 import com.yk.system.mapper.EmployeeHeartRateMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -43,5 +44,12 @@ public class HeartRateService {
         List<EmployeeMonitorVO> list = heartRateMapper.queryMonitor(name, job, isAbnormal);
         PageInfo<EmployeeMonitorVO> pageInfo = new PageInfo<>(list);
         return new PageResult<>(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 查询每位职工的最新一条心率记录（供前端10秒轮询使用）
+     */
+    public List<HeartRateLatestVO> getLatestPerEmployee() {
+        return heartRateMapper.getLatestPerEmployee();
     }
 }

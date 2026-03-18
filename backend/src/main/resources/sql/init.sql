@@ -59,3 +59,41 @@ CREATE TABLE IF NOT EXISTS `employee_disease_relation` (
 -- 初始管理员账户（用户名: admin，密码: admin123，已MD5加密）
 INSERT IGNORE INTO `user` (`username`, `password`, `real_name`)
 VALUES ('admin', '0192023a7bbd73250516f069df18b500', '系统管理员');
+
+-- 样本职工数据（用于模拟心率监测演示）
+INSERT IGNORE INTO `employee` (`id`, `name`, `age`, `position`, `working_years`, `phone`) VALUES
+(1, '张三',  35, '矿工',   5,  '13800000001'),
+(2, '李四',  42, '班长',   10, '13800000002'),
+(3, '王五',  28, '矿工',   3,  '13800000003'),
+(4, '赵六',  50, '安全员', 20, '13800000004'),
+(5, '陈七',  38, '技术员',  8, '13800000005'),
+(6, '刘八',  45, '矿工',   15, '13800000006'),
+(7, '周九',  32, '操作员',  6, '13800000007'),
+(8, '吴十',  55, '班长',   25, '13800000008');
+
+-- 初始心率记录（为各职工生成最近10分钟的历史数据，供轮询演示）
+INSERT INTO `employee_heart_rate` (`employee_id`, `heart_rate`, `measure_time`, `is_abnormal`, `source`) VALUES
+(1, 72, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(1, 75, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(1, 78, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator'),
+(2, 85, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(2, 88, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(2, 91, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator'),
+(3, 68, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(3, 65, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(3, 70, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator'),
+(4, 95, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(4, 98, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(4, 160,DATE_SUB(NOW(), INTERVAL 3 MINUTE), 1, 'simulator'),
+(5, 76, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(5, 79, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(5, 82, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator'),
+(6, 88, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(6, 92, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(6, 45, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 1, 'simulator'),
+(7, 73, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(7, 76, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(7, 74, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator'),
+(8, 80, DATE_SUB(NOW(), INTERVAL 9 MINUTE), 0, 'simulator'),
+(8, 83, DATE_SUB(NOW(), INTERVAL 6 MINUTE), 0, 'simulator'),
+(8, 86, DATE_SUB(NOW(), INTERVAL 3 MINUTE), 0, 'simulator');

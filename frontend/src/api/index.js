@@ -26,5 +26,6 @@ export const heartRateApi = {
   getById: (id) => request.get(`/heartRate/${id}`),
   add: (data) => request.post('/heartRate', data),
   delete: (id) => request.delete(`/heartRate/${id}`),
-  monitor: (params) => request.get('/heartRate/monitor', { params })
+  monitor: (params) => request.get('/heartRate/monitor', { params }),
+  latest: () => request.get('/heartRate/latest')
 }

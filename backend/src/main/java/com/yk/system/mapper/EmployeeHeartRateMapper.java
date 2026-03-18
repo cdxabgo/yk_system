@@ -2,6 +2,7 @@ package com.yk.system.mapper;
 
 import com.yk.system.entity.EmployeeHeartRate;
 import com.yk.system.entity.EmployeeMonitorVO;
+import com.yk.system.entity.HeartRateLatestVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -26,4 +27,9 @@ public interface EmployeeHeartRateMapper {
     List<EmployeeMonitorVO> queryMonitor(@Param("name") String name,
                                           @Param("job") String job,
                                           @Param("isAbnormal") Integer isAbnormal);
+
+    /**
+     * 查询每位职工的最新一条心率记录（供前端10秒轮询使用）
+     */
+    List<HeartRateLatestVO> getLatestPerEmployee();
 }
