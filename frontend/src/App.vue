@@ -40,6 +40,10 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>班中职工监控</span>
         </el-menu-item>
+        <el-menu-item index="/healthAdvice">
+          <el-icon><Document /></el-icon>
+          <span>健康建议生成</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -64,7 +68,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Monitor, DataAnalysis, FirstAidKit, Odometer, Avatar, Cpu, TrendCharts } from '@element-plus/icons-vue'
+import { User, Monitor, DataAnalysis, FirstAidKit, Odometer, Avatar, Cpu, TrendCharts, Document } from '@element-plus/icons-vue'
 import { authApi } from './api/index'
 
 const route = useRoute()

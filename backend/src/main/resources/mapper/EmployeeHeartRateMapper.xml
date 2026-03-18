@@ -97,6 +97,17 @@
         ORDER BY e.id
     </select>
 
+    <select id="getTodayByEmployeeId" resultMap="HeartRateMap">
+        SELECT hr.id, hr.employee_id, hr.heart_rate, hr.measure_time, hr.is_abnormal, hr.source,
+               e.name AS employee_name, e.position AS job
+        FROM employee_heart_rate hr
+        LEFT JOIN employee e ON hr.employee_id = e.id
+        WHERE hr.employee_id = #{employeeId}
+          AND hr.measure_time >= CURDATE()
+          AND hr.measure_time &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+        ORDER BY hr.measure_time ASC
+    </select>
+
     <!--
         班中职工监控查询：
         JOIN 职工信息表 + 心率表（最新记录）+ 异常心率统计
