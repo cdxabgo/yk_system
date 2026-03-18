@@ -32,4 +32,9 @@ public interface EmployeeHeartRateMapper {
      * 查询每位职工的最新一条心率记录（供前端10秒轮询使用）
      */
     List<HeartRateLatestVO> getLatestPerEmployee();
+
+    /**
+     * 查询某职工当天心率记录
+     */
+    List<EmployeeHeartRate> getTodayByEmployeeId(@Param("employeeId") Long employeeId);
 }
