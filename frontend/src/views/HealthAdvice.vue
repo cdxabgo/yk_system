@@ -74,6 +74,8 @@ const handleGenerate = async () => {
     const res = await healthAdviceApi.generate(selectedEmployeeId.value)
     adviceResult.value = res.data
     ElMessage.success('健康建议生成成功')
+  } catch (error) {
+    ElMessage.error(error?.message || '健康建议生成失败')
   } finally {
     loading.value = false
   }
