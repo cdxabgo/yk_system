@@ -16,10 +16,10 @@ def show_menu():
     print("  1. 训练模型 - 生成模拟数据并训练LightGBM模型")
     print("  2. 实时监测 - 模拟数据实时监测演示")
     print("  3. 完整流程 - 训练 + 监测一体化")
-    print("\n【MQTT数据模式】🔥")
-    print("  4. MQTT监测 - 接收MQTT数据并分析（支持Redis+MySQL）")
-    print("  5. MQTT发送 - 模拟发送MQTT测试数据")
-    print("  6. MQTT演示 - 自动化完整演示")
+    print("\n【数据库轮询模式】🔥")
+    print("  4. 数据库监测 - 定时从数据库读取心率并分析")
+    print("  5. MQTT发送（已停用）")
+    print("  6. MQTT演示（已停用）")
     print("\n【REST API服务】🆕")
     print("  7. 启动API服务 - 提供HTTP接口供Java等程序调用")
     print("  8. 测试API - 测试API接口功能")
@@ -99,40 +99,32 @@ def run_complete():
 
 
 def run_mqtt_monitor():
-    """MQTT监测"""
+    """数据库轮询监测（保留函数名兼容旧菜单）"""
     from mqtt_handler import MQTTHeartRateMonitor
     
     print("\n" + "="*80)
-    print("📡 MQTT监测模式（v2.0 - 支持Redis+MySQL）")
+    print("🗄️ 数据库轮询监测模式（v2.0）")
     print("="*80)
     
-    broker = input("\n请输入MQTT服务器地址 (默认test.mosquitto.org): ").strip()
-    broker = broker if broker else "test.mosquitto.org"
-    
-    port = input("请输入端口 (默认1883): ").strip()
-    port = int(port) if port else 1883
-    
-    # 询问是否启用Redis和数据库
-    enable_redis = input("\n是否启用Redis存储? (y/n, 默认y): ").strip().lower() != 'n'
-    enable_db = input("是否启用数据库记录? (y/n, 默认y): ").strip().lower() != 'n'
-    
-    print(f"\n连接到: {broker}:{port}")
-    print(f"Redis: {'✅ 已启用' if enable_redis else '❌ 未启用'}")
-    print(f"数据库: {'✅ 已启用' if enable_db else '❌ 未启用'}")
+    poll_interval = input("\n请输入数据库轮询间隔（秒，默认5）: ").strip()
+    poll_interval = int(poll_interval) if poll_interval else 5
+
+    print(f"\n轮询间隔: {poll_interval} 秒")
+    print("数据库: ✅ 已启用")
     print("\n💡 提示:")
     print("  - 本系统支持两种检测模式：")
     print("    1. 连续异常检测（数据充足时）")
     print("    2. 瞬时心率预警（数据较少时）")
-    print("  - 设备上线/离线状态会自动记录到数据库")
-    print("  - 历史数据自动存储到Redis（近10分钟）")
+    print("  - 每次从数据库 employee_heart_rate 读取新增数据")
+    print("  - 异常记录自动写入 anomaly_records / daily_anomaly_stats")
     print("  - 按 Ctrl+C 停止监测\n")
     
-    monitor = MQTTHeartRateMonitor(mqtt_broker=broker, mqtt_port=port, 
-                                   enable_redis=enable_redis, enable_db=enable_db)
-    print("按 Ctrl+C 停止监测\n")
-    
-    monitor = MQTTHeartRateMonitor(mqtt_broker=broker, mqtt_port=port)
-    
+    monitor = MQTTHeartRateMonitor(
+        enable_redis=False,
+        enable_db=True,
+        poll_interval=poll_interval
+    )
+
     try:
         monitor.start()
     except KeyboardInterrupt:
@@ -141,71 +133,13 @@ def run_mqtt_monitor():
 
 
 def run_mqtt_sender():
-    """MQTT发送"""
-    import mqtt_sender
-    mqtt_sender.main()
+    """MQTT发送（已停用）"""
+    print("\n⚠️ MQTT模式已停用，请直接向数据库 employee_heart_rate 写入测试数据。")
 
 
 def run_mqtt_demo():
-    """MQTT自动演示"""
-    import threading
-    import time
-    from mqtt_handler import MQTTHeartRateMonitor
-    from mqtt_sender import MQTTDataSender
-    
-    broker = "test.mosquitto.org"
-    port = 1883
-    
-    print("\n" + "="*80)
-    print("🎬 MQTT完整演示")
-    print("="*80)
-    print(f"\n📡 使用公共测试服务器: {broker}:{port}")
-    print("💡 演示将自动启动监测和发送数据\n")
-    
-    # 检查模型
-    from utils import SystemChecker
-    SystemChecker.check_model()
-    
-    # 启动监测线程
-    def start_monitor():
-        time.sleep(2)
-        print("\n🔍 启动监测系统...\n")
-        monitor = MQTTHeartRateMonitor(mqtt_broker=broker, mqtt_port=port, 
-                                       enable_redis=False, enable_db=False)
-        try:
-            monitor.start()
-        except:
-            pass
-    
-    # 启动发送线程
-    def start_sender():
-        time.sleep(4)
-        print("\n📡 启动数据发送...\n")
-        sender = MQTTDataSender(mqtt_broker=broker, mqtt_port=port)
-        sender.connect()
-        
-        # 为每个用户发送数据
-        for i in range(10):
-            for user in sender.users:
-                sender.send_batch_data(user, count=18)
-            print(f"✅ 已发送第 {i+1}/10 批数据")
-            time.sleep(5)
-        
-        sender.disconnect()
-    
-    # 启动线程
-    monitor_thread = threading.Thread(target=start_monitor, daemon=True)
-    sender_thread = threading.Thread(target=start_sender, daemon=True)
-    
-    monitor_thread.start()
-    sender_thread.start()
-    
-    try:
-        sender_thread.join()
-        print("\n✅ 演示完成！")
-        time.sleep(2)
-    except KeyboardInterrupt:
-        print("\n⏹️  演示已停止")
+    """MQTT演示（已停用）"""
+    print("\n⚠️ MQTT模式已停用。请使用选项 4（数据库监测）并向数据库写入测试数据。")
 
 
 def show_help():

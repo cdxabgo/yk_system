@@ -150,7 +150,7 @@ DATABASE_CONFIG = {
         'port': 3306,
         'user': 'root',
         'password': '123456',
-        'database': 'heart_rate_db',
+        'database': 'yk_demo',
         'charset': 'utf8mb4'
     }
 }
@@ -182,7 +182,7 @@ redis-server
 
 3. **创建MySQL数据库**
 ```sql
-CREATE DATABASE heart_rate_db CHARACTER SET utf8mb4;
+CREATE DATABASE yk_demo CHARACTER SET utf8mb4;
 ```
 
 4. **初始化数据库表**

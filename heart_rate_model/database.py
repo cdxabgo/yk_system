@@ -325,6 +325,72 @@ class DatabaseManager:
             print(f"❌ 查询异常记录失败: {e}")
             return []
 
+    # ==================== 心率数据读取（轮询模式） ====================
+
+    def get_latest_heart_rate_id(self) -> int:
+        """获取 employee_heart_rate 表中最新记录ID"""
+        try:
+            self.ensure_connection()
+            with self.connection.cursor() as cursor:
+                cursor.execute("SELECT IFNULL(MAX(id), 0) AS max_id FROM employee_heart_rate")
+                row = cursor.fetchone() or {}
+                return int(row.get('max_id') or 0)
+        except Exception as e:
+            print(f"❌ 查询最新心率记录ID失败: {e}")
+            return 0
+
+    def get_new_heart_rate_records(self, last_id: int = 0, limit: int = 100) -> List[Dict]:
+        """
+        获取大于 last_id 的最新心率记录（按ID升序）
+
+        Args:
+            last_id: 上次处理的最大ID
+            limit: 拉取条数上限
+        """
+        try:
+            self.ensure_connection()
+            with self.connection.cursor() as cursor:
+                sql = """
+                    SELECT id, employee_id, heart_rate, measure_time, is_abnormal, source
+                    FROM employee_heart_rate
+                    WHERE id > %s
+                    ORDER BY id ASC
+                    LIMIT %s
+                """
+                cursor.execute(sql, (last_id, limit))
+                return cursor.fetchall()
+        except Exception as e:
+            print(f"❌ 查询增量心率记录失败: {e}")
+            return []
+
+    def get_recent_employee_heart_rates(self, employee_id: str, limit: int = 60) -> List[Dict]:
+        """
+        获取指定职工最近心率数据（按时间升序返回）
+
+        Args:
+            employee_id: 职工ID
+            limit: 返回条数
+        """
+        try:
+            self.ensure_connection()
+            with self.connection.cursor() as cursor:
+                sql = """
+                    SELECT id, employee_id, heart_rate, measure_time, is_abnormal, source
+                    FROM (
+                        SELECT id, employee_id, heart_rate, measure_time, is_abnormal, source
+                        FROM employee_heart_rate
+                        WHERE employee_id = %s
+                        ORDER BY measure_time DESC, id DESC
+                        LIMIT %s
+                    ) t
+                    ORDER BY measure_time ASC, id ASC
+                """
+                cursor.execute(sql, (employee_id, limit))
+                return cursor.fetchall()
+        except Exception as e:
+            print(f"❌ 查询职工最近心率数据失败: {e}")
+            return []
+
 
 # 创建数据库表的SQL语句（首次使用时执行）
 CREATE_TABLES_SQL = """
