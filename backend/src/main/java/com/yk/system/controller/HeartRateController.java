@@ -4,9 +4,12 @@ import com.yk.system.common.PageResult;
 import com.yk.system.common.Result;
 import com.yk.system.entity.EmployeeHeartRate;
 import com.yk.system.entity.EmployeeMonitorVO;
+import com.yk.system.entity.HeartRateLatestVO;
 import com.yk.system.service.HeartRateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/heartRate")
@@ -55,5 +58,13 @@ public class HeartRateController {
             @RequestParam(required = false) String job,
             @RequestParam(required = false) Integer isAbnormal) {
         return Result.success(heartRateService.queryMonitor(page, size, name, job, isAbnormal));
+    }
+
+    /**
+     * 查询每位职工最新一条心率记录（供前端每10秒轮询，模拟实时监测）
+     */
+    @GetMapping("/latest")
+    public Result<List<HeartRateLatestVO>> latest() {
+        return Result.success(heartRateService.getLatestPerEmployee());
     }
 }

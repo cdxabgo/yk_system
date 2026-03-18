@@ -34,7 +34,7 @@ public class CorsConfig implements WebMvcConfigurer {
                         "/api/auth/login",
                         // SSE 流端点：浏览器 EventSource 不支持自定义请求头，故排除
                         "/api/realtime/stream",
-                        // Python ML 推送端点：仅限本机调用，故排除
+                        // SSE 推送端点：保留供外部工具调试使用
                         "/api/realtime/push"
                 );
     }

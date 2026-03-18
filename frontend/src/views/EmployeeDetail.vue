@@ -4,8 +4,8 @@
     <div class="top-bar">
       <el-button :icon="ArrowLeft" plain @click="router.push('/dashboard')">返回看板</el-button>
       <span class="page-title">职工详情 — {{ empInfo?.name || `#${employeeId}` }}</span>
-      <el-tag :type="sseOk ? 'success' : 'info'" size="small">
-        {{ sseOk ? '📡 实时已连' : '📡 未连接' }}
+      <el-tag :type="pollingActive ? 'success' : 'info'" size="small">
+        {{ pollingActive ? '🔄 轮询中' : '○ 未启动' }}
       </el-tag>
     </div>
 
@@ -155,7 +155,7 @@
           </div>
         </el-card>
 
-        <!-- Live SSE alarm feed -->
+        <!-- Live alarm feed (from DB poll) -->
         <el-card class="live-card" v-if="liveAlerts.length > 0">
           <template #header>
             <div class="card-hd">
@@ -227,7 +227,7 @@ async function loadAlarms() {
   }
 }
 
-// ─── Real-time heart rate chart (SSE) ────────────────────
+// ─── Real-time heart rate chart (DB polling) ─────────────
 const HR_MIN   = 30
 const HR_MAX   = 210
 const HR_RANGE = HR_MAX - HR_MIN
@@ -235,19 +235,20 @@ const CHART_W  = 800
 const CHART_H  = 140
 const CHART_PAD = 8
 
-const SSE_RECONNECT_DELAY_MS = 3000   // Delay before SSE reconnect attempt
-const MAX_HR_HISTORY_LENGTH  = 60     // Rolling window of heart rate readings for chart
-const MAX_LIVE_ALERTS        = 50     // Maximum stored live alert entries
+const POLL_INTERVAL_MS      = 10000  // Poll DB every 10 s
+const MAX_HR_HISTORY_LENGTH = 60     // Rolling window of readings for chart
+const MAX_LIVE_ALERTS       = 50     // Maximum stored live alert entries
 
 function hrY(hr) {
   const clamped = Math.max(HR_MIN, Math.min(HR_MAX, hr))
   return CHART_H - CHART_PAD - ((clamped - HR_MIN) / HR_RANGE) * (CHART_H - 2 * CHART_PAD)
 }
 
-const sseOk         = ref(false)
-const hrHistory     = ref([])        // { hr: Number, isAbnormal: Boolean }
+const pollingActive  = ref(false)
+const hrHistory      = ref([])        // { hr: Number, isAbnormal: Boolean }
 const currentDeviceId = ref(null)
-const liveAlerts    = ref([])        // { time, hr } – real-time feed from SSE
+const liveAlerts     = ref([])        // { time, hr } – real-time feed from DB poll
+const lastSeenTime   = ref(null)      // raw dataTime string of last processed record
 
 const currentHr = computed(() => {
   if (!hrHistory.value.length) return null
@@ -266,7 +267,6 @@ const currentStatusTag = computed(() => {
     : { type: 'success', label: '✓ 正常' }
 })
 
-// Show at most 60 dots to avoid cluttering the SVG
 const visibleDots = computed(() => {
   const pts = hrHistory.value
   return pts.map((p, i) => ({
@@ -281,42 +281,45 @@ const chartPoints = computed(() => {
   return visibleDots.value.map(d => `${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ')
 })
 
-// ─── SSE ─────────────────────────────────────────────────
-let eventSource = null
+// ─── DB polling ───────────────────────────────────────
+let pollTimer = null
 
-function connectSse() {
-  if (eventSource) return
-  eventSource = new EventSource('/api/realtime/stream')
+async function pollLatest() {
+  try {
+    const res = await heartRateApi.latest()
+    const list = res.data
+    if (!Array.isArray(list)) return
+    const entry = list.find(d => String(d.userId) === String(employeeId))
+    if (!entry) return
 
-  eventSource.addEventListener('connected', () => { sseOk.value = true })
+    const rawTime = String(entry.dataTime ?? '')
+    if (rawTime === lastSeenTime.value) return // No new data for this employee
+    lastSeenTime.value = rawTime
 
-  eventSource.addEventListener('heartrate', (e) => {
-    try {
-      const d = JSON.parse(e.data)
-      if (String(d.userId) !== String(employeeId)) return
+    const hr = entry.heartRate != null ? Number(entry.heartRate) : null
+    if (hr === null) return
 
-      const hr = d.heartRate != null ? Number(d.heartRate) : null
-      if (hr === null) return
+    const isAbnormal = !!entry.isAbnormal
+    hrHistory.value.push({ hr, isAbnormal })
+    if (hrHistory.value.length > MAX_HR_HISTORY_LENGTH) hrHistory.value.shift()
 
-      const isAbnormal = !!d.isAbnormal
-      hrHistory.value.push({ hr, isAbnormal })
-      if (hrHistory.value.length > MAX_HR_HISTORY_LENGTH) hrHistory.value.shift()
+    if (isAbnormal) {
+      liveAlerts.value.push({ time: new Date().toLocaleTimeString('zh-CN'), hr })
+      if (liveAlerts.value.length > MAX_LIVE_ALERTS) liveAlerts.value.shift()
+    }
+  } catch (_) {}
+}
 
-      if (d.deviceId) currentDeviceId.value = d.deviceId
+function startPolling() {
+  if (pollingActive.value) return
+  pollingActive.value = true
+  pollLatest()
+  pollTimer = setInterval(pollLatest, POLL_INTERVAL_MS)
+}
 
-      if (isAbnormal) {
-        liveAlerts.value.push({ time: new Date().toLocaleTimeString('zh-CN'), hr })
-        if (liveAlerts.value.length > MAX_LIVE_ALERTS) liveAlerts.value.shift()
-      }
-    } catch (_) {}
-  })
-
-  eventSource.onerror = () => {
-    sseOk.value = false
-    eventSource.close()
-    eventSource = null
-    setTimeout(connectSse, SSE_RECONNECT_DELAY_MS)
-  }
+function stopPolling() {
+  pollingActive.value = false
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 }
 
 // ─── Utilities ────────────────────────────────────────────
@@ -339,11 +342,11 @@ onMounted(() => {
   loadEmpInfo()
   loadAlarms()
   loadRecentHistory()
-  connectSse()
+  startPolling()
 })
 
 onUnmounted(() => {
-  if (eventSource) { eventSource.close(); eventSource = null }
+  stopPolling()
 })
 </script>
 

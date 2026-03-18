@@ -8,9 +8,6 @@
           班中监控看板
         </span>
         <div class="bar-right">
-          <el-tag :type="sseOk ? 'success' : 'info'" size="small">
-            {{ sseOk ? '📡 实时已连' : '📡 未连接' }}
-          </el-tag>
           <el-tag size="small" type="info">共 {{ cards.length }} 人</el-tag>
           <el-button size="small" :icon="Refresh" @click="loadData" :loading="loading">刷新</el-button>
         </div>
@@ -62,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { TrendCharts, Refresh } from '@element-plus/icons-vue'
 import { heartRateApi } from '../api/index'
@@ -70,27 +67,18 @@ import { heartRateApi } from '../api/index'
 const router = useRouter()
 
 // ─── Constants ────────────────────────────────────────────
-const REFRESH_INTERVAL_MS     = 60000   // Full data refresh from server
-const STATUS_UPDATE_INTERVAL_MS = 30000  // Local status re-evaluation (gray/red transitions)
-const SSE_RECONNECT_DELAY_MS  = 3000    // Delay before SSE reconnect attempt
+const POLL_INTERVAL_MS          = 10000   // DB poll every 10 s
+const STATUS_UPDATE_INTERVAL_MS = 30000   // Local status re-evaluation every 30 s
 const DEVICE_ONLINE_THRESHOLD_MS = 5 * 60 * 1000   // 5 min → device considered offline
-const GRAY_THRESHOLD_MS         = 10 * 60 * 1000   // 10 min → gray card
-const RED_STREAK_THRESHOLD_MS   = 5 * 60 * 1000    // 5 min → continuous anomaly (red)
+const GRAY_THRESHOLD_MS          = 10 * 60 * 1000  // 10 min → gray card
+const RED_STREAK_THRESHOLD_MS    = 5 * 60 * 1000   // 5 min → continuous anomaly (red)
 
 // ─── State ────────────────────────────────────────────────
 const loading = ref(false)
 const cards   = ref([])   // EmployeeMonitorVO[]
-const sseOk   = ref(false)
 
-/**
- * SSE real-time overlay keyed by String(employeeId).
- * { hr, isAbnormal, lastSseMs, streakStartMs }
- */
-const sseOverlay = reactive({})
-
-let eventSource   = null
-let refreshTimer  = null
-let clockTimer    = null
+let pollTimer  = null
+let clockTimer = null
 
 // ─── Data loading ─────────────────────────────────────────
 async function loadData() {
@@ -98,66 +86,8 @@ async function loadData() {
   try {
     const res = await heartRateApi.monitor({ page: 1, size: 100 })
     cards.value = res.data.list
-
-    // Seed sseOverlay with backend streak info on first load
-    cards.value.forEach(c => {
-      const id = String(c.employeeId)
-      if (!sseOverlay[id]) {
-        sseOverlay[id] = {
-          hr: null,
-          isAbnormal: null,
-          lastSseMs: null,
-          streakStartMs: c.streakStartTime ? parseTs(c.streakStartTime) : null
-        }
-      }
-    })
   } finally {
     loading.value = false
-  }
-}
-
-// ─── SSE connection ───────────────────────────────────────
-function connectSse() {
-  if (eventSource) return
-  eventSource = new EventSource('/api/realtime/stream')
-
-  eventSource.addEventListener('connected', () => { sseOk.value = true })
-
-  eventSource.addEventListener('heartrate', (e) => {
-    try { applySSE(JSON.parse(e.data)) } catch (_) {}
-  })
-
-  eventSource.onerror = () => {
-    sseOk.value = false
-    eventSource.close()
-    eventSource = null
-    setTimeout(connectSse, SSE_RECONNECT_DELAY_MS)
-  }
-}
-
-function disconnectSse() {
-  if (eventSource) { eventSource.close(); eventSource = null }
-  sseOk.value = false
-}
-
-function applySSE(data) {
-  const uid = String(data.userId ?? '')
-  if (!uid) return
-  const now = Date.now()
-  const isAbnormal = !!data.isAbnormal
-
-  if (!sseOverlay[uid]) {
-    sseOverlay[uid] = { hr: null, isAbnormal: null, lastSseMs: null, streakStartMs: null }
-  }
-  const ov = sseOverlay[uid]
-  ov.hr = data.heartRate != null ? Number(data.heartRate) : null
-  ov.isAbnormal = isAbnormal
-  ov.lastSseMs  = now
-
-  if (isAbnormal) {
-    if (!ov.streakStartMs) ov.streakStartMs = now
-  } else {
-    ov.streakStartMs = null
   }
 }
 
@@ -168,30 +98,24 @@ function parseTs(str) {
   return isNaN(d.getTime()) ? null : d.getTime()
 }
 
-function latestHr(c) {
-  const ov = sseOverlay[String(c.employeeId)]
-  return (ov?.hr !== null && ov?.hr !== undefined) ? ov.hr : c.latestHeartRate
+function lastMs(c) {
+  return parseTs(c.latestCollectTime)
 }
 
-function lastMs(c) {
-  const ov = sseOverlay[String(c.employeeId)]
-  return ov?.lastSseMs ?? parseTs(c.latestCollectTime)
+function latestHr(c) {
+  return c.latestHeartRate
 }
 
 function latestAbnormal(c) {
-  const ov = sseOverlay[String(c.employeeId)]
-  return (ov?.isAbnormal !== null && ov?.isAbnormal !== undefined)
-    ? ov.isAbnormal
-    : c.latestIsAbnormal === 1
+  return c.latestIsAbnormal === 1
 }
 
 function getStatus(c) {
-  const now = Date.now()
+  const now  = Date.now()
   const last = lastMs(c)
   if (!last || now - last > GRAY_THRESHOLD_MS) return 'gray'
   if (!latestAbnormal(c)) return 'cyan'
-  const ov = sseOverlay[String(c.employeeId)]
-  const streakStart = ov?.streakStartMs ?? parseTs(c.streakStartTime)
+  const streakStart = parseTs(c.streakStartTime)
   if (streakStart && now - streakStart >= RED_STREAK_THRESHOLD_MS) return 'red'
   return 'yellow'
 }
@@ -231,17 +155,15 @@ function go(employeeId) {
 // ─── Lifecycle ────────────────────────────────────────────
 onMounted(() => {
   loadData()
-  connectSse()
-  // Full data refresh every 60 s (fallback)
-  refreshTimer = setInterval(loadData, REFRESH_INTERVAL_MS)
+  // Poll DB every 10 s for fresh data
+  pollTimer  = setInterval(loadData, POLL_INTERVAL_MS)
   // Trigger reactivity for timed status transitions (gray / red) every 30 s
   clockTimer = setInterval(() => { cards.value = [...cards.value] }, STATUS_UPDATE_INTERVAL_MS)
 })
 
 onUnmounted(() => {
-  disconnectSse()
-  if (refreshTimer) clearInterval(refreshTimer)
-  if (clockTimer)   clearInterval(clockTimer)
+  if (pollTimer)  clearInterval(pollTimer)
+  if (clockTimer) clearInterval(clockTimer)
 })
 </script>
 

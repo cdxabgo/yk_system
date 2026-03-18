@@ -70,6 +70,33 @@
         DELETE FROM employee_heart_rate WHERE id = #{id}
     </delete>
 
+    <!-- 查询每位职工的最新一条心率记录，供前端10秒轮询使用 -->
+    <select id="getLatestPerEmployee" resultType="HeartRateLatestVO">
+        SELECT
+            e.id AS userId,
+            e.name AS employeeName,
+            hr.heart_rate AS heartRate,
+            hr.is_abnormal AS isAbnormal,
+            hr.measure_time AS dataTime,
+            CASE
+                WHEN hr.is_abnormal = 1 AND hr.heart_rate > 100 THEN '心率过高'
+                WHEN hr.is_abnormal = 1 AND hr.heart_rate &lt; 60  THEN '心率过低'
+                WHEN hr.is_abnormal = 1                          THEN '心律异常'
+                ELSE NULL
+            END AS anomalyType
+        FROM employee e
+        LEFT JOIN (
+            SELECT hr1.*
+            FROM employee_heart_rate hr1
+            INNER JOIN (
+                SELECT employee_id, MAX(measure_time) AS max_time
+                FROM employee_heart_rate
+                GROUP BY employee_id
+            ) hr2 ON hr1.employee_id = hr2.employee_id AND hr1.measure_time = hr2.max_time
+        ) hr ON e.id = hr.employee_id
+        ORDER BY e.id
+    </select>
+
     <!--
         班中职工监控查询：
         JOIN 职工信息表 + 心率表（最新记录）+ 异常心率统计
