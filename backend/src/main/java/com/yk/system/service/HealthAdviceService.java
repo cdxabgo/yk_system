@@ -115,7 +115,7 @@ public class HealthAdviceService {
             String requestJson = OBJECT_MAPPER.writeValueAsString(body);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(deepseekApiUrl))
+                    .uri(URI.create(resolveDeepSeekApiUrl(deepseekApiUrl)))
                     .timeout(Duration.ofSeconds(30))
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + deepseekApiKey.trim())
@@ -138,5 +138,37 @@ public class HealthAdviceService {
         } catch (Exception e) {
             throw new IllegalStateException("生成健康建议失败: " + e.getMessage(), e);
         }
+    }
+
+    static String resolveDeepSeekApiUrl(String configuredApiUrl) {
+        if (configuredApiUrl == null) {
+            return "https://api.deepseek.com/chat/completions";
+        }
+        String url = configuredApiUrl.trim();
+        if (url.isEmpty()) {
+            return "https://api.deepseek.com/chat/completions";
+        }
+        if (url.endsWith("/chat/completions/")) {
+            return url.substring(0, url.length() - 1);
+        }
+        if (url.endsWith("/chat/completions")) {
+            return url;
+        }
+        if (url.endsWith("/v1")) {
+            return url + "/chat/completions";
+        }
+        if (url.endsWith("/v1/")) {
+            return url + "chat/completions";
+        }
+        try {
+            URI uri = URI.create(url);
+            String path = uri.getPath();
+            if (path == null || path.isEmpty() || "/".equals(path)) {
+                return (url.endsWith("/") ? url.substring(0, url.length() - 1) : url) + "/chat/completions";
+            }
+        } catch (IllegalArgumentException ignored) {
+            // 保持原始配置，交由下游请求报错
+        }
+        return url;
     }
 }
