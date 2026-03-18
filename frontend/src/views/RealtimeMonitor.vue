@@ -225,11 +225,14 @@ function startPolling() {
 
 function stopPolling() {
   polling.value = false
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
+  clearPollTimer()
   ElMessage.info('轮询已停止')
+}
+
+function clearPollTimer() {
+  if (!pollTimer) return
+  clearInterval(pollTimer)
+  pollTimer = null
 }
 
 function togglePolling() {
@@ -268,7 +271,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopPolling()
+  clearPollTimer()
 })
 </script>
 
