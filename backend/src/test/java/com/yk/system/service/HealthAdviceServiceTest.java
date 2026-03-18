@@ -45,4 +45,20 @@ class HealthAdviceServiceTest {
         String resolved = HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com/chat/completions");
         assertEquals("https://api.deepseek.com/chat/completions", resolved);
     }
+
+    @Test
+    void shouldHandleEdgeCasesForDeepSeekApiUrlResolution() {
+        assertEquals("https://api.deepseek.com/chat/completions",
+                HealthAdviceService.resolveDeepSeekApiUrl(null));
+        assertEquals("https://api.deepseek.com/chat/completions",
+                HealthAdviceService.resolveDeepSeekApiUrl("  "));
+        assertEquals("https://api.deepseek.com/chat/completions",
+                HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com/chat/completions/"));
+        assertEquals("https://api.deepseek.com/v1/chat/completions",
+                HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com/v1/"));
+        assertEquals("https://api.deepseek.com/chat/completions",
+                HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com"));
+        assertEquals("https://api.deepseek.com/custom/path",
+                HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com/custom/path"));
+    }
 }

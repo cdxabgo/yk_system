@@ -160,6 +160,15 @@ public class HealthAdviceService {
         if (url.endsWith("/v1/")) {
             return url + "chat/completions";
         }
+        try {
+            URI uri = URI.create(url);
+            String path = uri.getPath();
+            if (path == null || path.isEmpty() || "/".equals(path)) {
+                return (url.endsWith("/") ? url.substring(0, url.length() - 1) : url) + "/chat/completions";
+            }
+        } catch (IllegalArgumentException ignored) {
+            // 保持原始配置，交由下游请求报错
+        }
         return url;
     }
 }
