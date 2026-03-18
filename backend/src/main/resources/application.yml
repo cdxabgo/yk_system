@@ -28,3 +28,8 @@ jwt:
 heart-rate:
   simulator:
     enabled: true
+
+deepseek:
+  api-url: ${DEEPSEEK_API_URL:https://api.deepseek.com/v1}
+  api-key: ${DEEPSEEK_API_KEY:sk-b3878557eeff49d7bdbb510bde3aa863}
+  model: ${DEEPSEEK_MODEL:deepseek-reasoner}

@@ -108,6 +108,7 @@ export JAVA_BACKEND_URL=http://your-java-host:8081
 
 - `GET /api/realtime/stream`：前端 SSE 订阅
 - `POST /api/realtime/push`：Python 推送实时结果
+- `GET /api/healthAdvice/generate?employeeId={id}`：基于当天心率+职工信息生成健康建议（DeepSeek）
 
 ### Python 服务
 
@@ -145,6 +146,17 @@ export JAVA_BACKEND_URL=http://your-java-host:8081
 heart-rate:
   simulator:
     enabled: false
+```
+
+### 4）健康建议生成提示未配置 DeepSeek Key
+
+后端通过环境变量读取 DeepSeek 配置：
+
+```bash
+export DEEPSEEK_API_KEY=your_deepseek_api_key
+# 可选：
+export DEEPSEEK_MODEL=deepseek-reasoner
+export DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
 ```
 
 ---

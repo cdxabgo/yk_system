@@ -29,3 +29,7 @@ export const heartRateApi = {
   monitor: (params) => request.get('/heartRate/monitor', { params }),
   latest: () => request.get('/heartRate/latest')
 }
+
+export const healthAdviceApi = {
+  generate: (employeeId) => request.get('/healthAdvice/generate', { params: { employeeId } })
+}
