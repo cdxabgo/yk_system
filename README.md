@@ -44,7 +44,7 @@ yk_system/
 ### 4.1 启动 Java 后端
 
 ```bash
-cd /home/runner/work/yk_system/yk_system/backend
+cd backend
 mvn spring-boot:run
 ```
 
@@ -53,7 +53,7 @@ mvn spring-boot:run
 ### 4.2 启动前端
 
 ```bash
-cd /home/runner/work/yk_system/yk_system/frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -63,7 +63,7 @@ npm run dev
 ### 4.3 启动 Python 服务
 
 ```bash
-cd /home/runner/work/yk_system/yk_system/heart_rate_model
+cd heart_rate_model
 pip install -r requirements.txt
 python rest_api.py
 ```
@@ -79,7 +79,7 @@ python rest_api.py
 **可以。** 两边数据都会进入同一套链路。
 
 后端模拟器开关在：
-`/home/runner/work/yk_system/yk_system/backend/src/main/resources/application.yml`
+`backend/src/main/resources/application.yml`
 
 ```yaml
 heart-rate:
@@ -153,11 +153,11 @@ heart-rate:
 
 ```bash
 # frontend 构建
-cd /home/runner/work/yk_system/yk_system/frontend && npm run build
+cd frontend && npm run build
 
 # backend 测试（需要 Java 21）
-cd /home/runner/work/yk_system/yk_system/backend && mvn test
+cd backend && mvn test
 
 # python 服务启动
-cd /home/runner/work/yk_system/yk_system/heart_rate_model && python rest_api.py
+cd heart_rate_model && python rest_api.py
 ```
