@@ -4,6 +4,7 @@ import com.yk.system.entity.Employee;
 import com.yk.system.entity.EmployeeHeartRate;
 import com.yk.system.mapper.EmployeeHeartRateMapper;
 import com.yk.system.mapper.EmployeeMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.Random;
  * 正常心率 60-100 bpm（92%），心率过高 150-200 bpm（5%），心率过低 30-59 bpm（3%）。
  */
 @Service
+@ConditionalOnProperty(prefix = "heart-rate.simulator", name = "enabled", havingValue = "true")
 public class HeartRateSimulatorService {
 
     @Autowired

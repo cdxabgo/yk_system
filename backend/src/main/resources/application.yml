@@ -24,3 +24,7 @@ pagehelper:
 jwt:
   secret: ${JWT_SECRET:yk-system-jwt-secret-key-2024-must-be-at-least-256-bits-long}
   expiration: 86400000
+
+heart-rate:
+  simulator:
+    enabled: false
