@@ -319,7 +319,13 @@ function startPolling() {
 
 function stopPolling() {
   pollingActive.value = false
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  clearPollTimer()
+}
+
+function clearPollTimer() {
+  if (!pollTimer) return
+  clearInterval(pollTimer)
+  pollTimer = null
 }
 
 // ─── Utilities ────────────────────────────────────────────
@@ -346,7 +352,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopPolling()
+  clearPollTimer()
 })
 </script>
 
