@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HealthAdviceServiceTest {
@@ -31,5 +32,17 @@ class HealthAdviceServiceTest {
         assertTrue(prompt.contains("岗位: 矿工"));
         assertTrue(prompt.contains("心率=102"));
         assertTrue(prompt.contains("是否异常=是"));
+    }
+
+    @Test
+    void shouldResolveDeepSeekApiUrlWhenConfiguredWithV1Base() {
+        String resolved = HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com/v1");
+        assertEquals("https://api.deepseek.com/v1/chat/completions", resolved);
+    }
+
+    @Test
+    void shouldKeepDeepSeekApiUrlWhenConfiguredWithCompletionsPath() {
+        String resolved = HealthAdviceService.resolveDeepSeekApiUrl("https://api.deepseek.com/chat/completions");
+        assertEquals("https://api.deepseek.com/chat/completions", resolved);
     }
 }
