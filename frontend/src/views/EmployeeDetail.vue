@@ -357,19 +357,22 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.detail-page { display: flex; flex-direction: column; gap: 14px; }
+.detail-page { display: flex; flex-direction: column; gap: 16px; }
 
 /* ── Top bar ──────────────────────────────────────────── */
 .top-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(12, 20, 29, 0.7);
+  border: 1px solid var(--yk-border);
 }
 .page-title {
   font-size: 18px;
   font-weight: 700;
-  color: #303133;
+  color: var(--yk-text);
   flex: 1;
 }
 .ml-auto { margin-left: auto; }
@@ -377,11 +380,11 @@ onUnmounted(() => {
 /* ── Two-column layout ───────────────────────────────── */
 .detail-layout {
   display: flex;
-  gap: 16px;
+  gap: 18px;
   align-items: flex-start;
 }
-.left-panel  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
-.right-panel { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+.left-panel  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.right-panel { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
 
 /* ── Card header row ────────────────────────────────── */
 .card-hd {
@@ -389,12 +392,12 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
 }
-.hd-text { font-size: 15px; font-weight: 600; color: #303133; }
-.chart-count { font-size: 12px; color: #909399; margin-left: auto; }
+.hd-text { font-size: 15px; font-weight: 600; color: var(--yk-text); }
+.chart-count { font-size: 12px; color: var(--yk-muted); margin-left: auto; }
 
 /* ── Heart rate values ─────────────────────────────── */
-.rate-ok     { color: #67c23a; font-weight: 700; }
-.rate-danger { color: #f56c6c; font-weight: 700; }
+.rate-ok     { color: var(--yk-success); font-weight: 700; }
+.rate-danger { color: var(--yk-danger); font-weight: 700; }
 
 /* ── Chart ──────────────────────────────────────────── */
 .empty-chart { padding: 30px 0; }
@@ -408,11 +411,16 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--yk-border);
   font-size: 13px;
 }
 .live-item:last-child { border-bottom: none; }
-.live-time { color: #909399; font-size: 12px; }
-.live-rate { font-weight: 700; color: #f56c6c; margin-left: auto; }
+.live-time { color: var(--yk-muted); font-size: 12px; }
+.live-rate { font-weight: 700; color: var(--yk-danger); margin-left: auto; }
+
+@media (max-width: 980px) {
+  .detail-layout { flex-direction: column; }
+  .right-panel { width: 100%; }
+}
 </style>
