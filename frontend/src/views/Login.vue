@@ -207,7 +207,7 @@ const handleLogin = async () => {
   width: 8px;
   border-radius: 6px;
   background: linear-gradient(180deg, rgba(93, 227, 255, 0.8), rgba(93, 227, 255, 0.1));
-  animation: pulse 1.8s ease-in-out infinite;
+  animation: pulse-bounce 1.8s ease-in-out infinite;
 }
 
 .pulse-bar:nth-child(odd) { animation-delay: 0.3s; height: 22px; }
@@ -247,7 +247,7 @@ const handleLogin = async () => {
   font-size: 15px;
   letter-spacing: 2px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #5de3ff, #7dffa0);
+  background: linear-gradient(135deg, var(--yk-accent), var(--yk-accent-strong));
   color: #02121a;
   border: none;
   font-weight: 700;
@@ -260,7 +260,7 @@ const handleLogin = async () => {
   margin-top: 12px;
 }
 
-@keyframes pulse {
+@keyframes pulse-bounce {
   0%, 100% { opacity: 0.4; transform: translateY(0); }
   50% { opacity: 1; transform: translateY(-6px); }
 }
