@@ -189,8 +189,13 @@ onMounted(loadList)
 .page-container { display: flex; flex-direction: column; gap: 16px; }
 .search-card :deep(.el-card__body) { padding: 16px 20px 0; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.card-title { font-size: 16px; font-weight: 600; color: #303133; }
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--yk-text);
+  letter-spacing: 0.6px;
+}
 .pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
-.rate-abnormal { color: #f56c6c; font-weight: bold; font-size: 15px; }
-.rate-normal { color: #67c23a; font-weight: bold; font-size: 15px; }
+.rate-abnormal { color: var(--yk-danger); font-weight: bold; font-size: 15px; }
+.rate-normal { color: var(--yk-success); font-weight: bold; font-size: 15px; }
 </style>

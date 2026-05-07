@@ -95,5 +95,6 @@ onMounted(loadEmployeeOptions)
   display: flex;
   align-items: center;
   justify-content: space-between;
+  color: var(--yk-text);
 }
 </style>

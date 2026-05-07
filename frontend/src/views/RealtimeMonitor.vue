@@ -276,10 +276,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.realtime-container { display: flex; flex-direction: column; gap: 16px; }
+.realtime-container { display: flex; flex-direction: column; gap: 18px; }
 
 /* ── 状态卡 ─────────────────────────────────────── */
-.guide-card :deep(.el-card__body) { padding: 14px 20px; }
+.guide-card :deep(.el-card__body) { padding: 16px 22px; }
 
 .guide-steps {
   display: flex;
@@ -293,84 +293,102 @@ onUnmounted(() => {
   min-width: 260px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 2px solid #e4e7ed;
-  background: #fafafa;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--yk-border);
+  background: rgba(10, 18, 26, 0.7);
   transition: border-color 0.3s, background 0.3s;
 }
-.step-done    { border-color: #67c23a; background: #f0f9eb; }
-.step-pending { border-color: #409eff; background: #ecf5ff; }
+.step-done    { border-color: rgba(82, 230, 167, 0.5); background: rgba(7, 20, 18, 0.72); }
+.step-pending { border-color: rgba(93, 227, 255, 0.5); background: rgba(10, 18, 26, 0.75); }
 
 .step-badge {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background: #409eff;
-  color: #fff;
+  background: rgba(93, 227, 255, 0.25);
+  color: var(--yk-accent);
   font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid rgba(93, 227, 255, 0.4);
 }
-.step-done .step-badge { background: #67c23a; }
+.step-done .step-badge {
+  background: rgba(82, 230, 167, 0.22);
+  color: var(--yk-success);
+  border-color: rgba(82, 230, 167, 0.45);
+}
 
 .step-body { flex: 1; }
-.step-title { font-size: 14px; font-weight: 600; color: #303133; margin-bottom: 2px; }
-.step-desc  { font-size: 12px; color: #606266; }
+.step-title { font-size: 14px; font-weight: 600; color: var(--yk-text); margin-bottom: 2px; }
+.step-desc  { font-size: 12px; color: var(--yk-muted); }
 .step-tag   { flex-shrink: 0; }
 
-.stats-row { margin-top: 10px; border-top: 1px solid #f0f0f0; padding-top: 8px; }
-.clients-tip { font-size: 12px; color: #909399; }
+.stats-row { margin-top: 12px; border-top: 1px solid var(--yk-border); padding-top: 10px; }
+.clients-tip { font-size: 12px; color: var(--yk-muted); }
 
 /* ── 数据区 ──────────────────────────────────────────── */
-.main-content { display: flex; gap: 16px; align-items: flex-start; }
+.main-content { display: flex; gap: 18px; align-items: flex-start; }
 .cards-section { flex: 1; min-width: 0; }
-.alerts-section { width: 300px; flex-shrink: 0; }
+.alerts-section { width: 320px; flex-shrink: 0; }
 .section-card { height: 100%; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.card-title { font-size: 15px; font-weight: 600; color: #303133; }
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--yk-text);
+  letter-spacing: 0.6px;
+}
 
 .empty-hint { padding: 30px 0; }
 
-.user-cards { display: flex; flex-wrap: wrap; gap: 12px; }
+.user-cards { display: flex; flex-wrap: wrap; gap: 14px; }
 
 .user-card {
-  border-radius: 8px;
-  padding: 14px 16px;
-  min-width: 140px;
-  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 16px 18px;
+  min-width: 150px;
+  border: 1px solid transparent;
   transition: border-color 0.3s, box-shadow 0.3s;
   cursor: default;
+  background: rgba(10, 18, 26, 0.7);
 }
-.card-normal   { background: #f0f9eb; border-color: #b3e19d; }
-.card-abnormal { background: #fef0f0; border-color: #fbc4c4; animation: pulse 1.2s ease-in-out infinite; }
+.card-normal   { border-color: rgba(82, 230, 167, 0.35); }
+.card-abnormal {
+  border-color: rgba(255, 107, 107, 0.55);
+  animation: pulse 1.2s ease-in-out infinite;
+}
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245,108,108,0); }
-  50%       { box-shadow: 0 0 8px 3px rgba(245,108,108,0.4); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+  50%       { box-shadow: 0 0 10px 3px rgba(255, 107, 107, 0.35); }
 }
 
-.card-uid  { font-size: 12px; color: #909399; margin-bottom: 4px; font-weight: 600; }
-.card-rate { font-size: 36px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
-.rate-ok     { color: #67c23a; }
-.rate-danger { color: #f56c6c; }
-.rate-unit { font-size: 14px; font-weight: 400; margin-left: 2px; }
-.card-time   { font-size: 11px; color: #c0c4cc; margin-bottom: 6px; }
+.card-uid  { font-size: 12px; color: var(--yk-muted); margin-bottom: 6px; font-weight: 600; }
+.card-rate { font-size: 34px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+.rate-ok     { color: var(--yk-success); }
+.rate-danger { color: var(--yk-danger); }
+.rate-unit { font-size: 13px; font-weight: 400; margin-left: 2px; }
+.card-time   { font-size: 11px; color: var(--yk-muted); margin-bottom: 8px; }
 .card-status { margin-bottom: 8px; }
 
 .mini-trend { display: flex; align-items: flex-end; gap: 2px; height: 40px; overflow: hidden; }
 .trend-bar  { display: inline-block; width: 5px; border-radius: 2px 2px 0 0; transition: height 0.3s; }
 
-.alert-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.alert-item { padding: 10px 0; border-bottom: 1px solid var(--yk-border); }
 .alert-item:last-child { border-bottom: none; }
-.alert-top  { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.alert-uid  { font-size: 13px; font-weight: 600; }
-.alert-time { font-size: 11px; color: #909399; margin-left: auto; }
+.alert-top  { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.alert-uid  { font-size: 13px; font-weight: 600; color: var(--yk-text); }
+.alert-time { font-size: 11px; color: var(--yk-muted); margin-left: auto; }
 .alert-body { display: flex; align-items: center; gap: 8px; }
-.alert-rate { font-size: 16px; }
-.alert-type { font-size: 12px; color: #f56c6c; }
+.alert-rate { font-size: 16px; color: var(--yk-danger); font-weight: 700; }
+.alert-type { font-size: 12px; color: var(--yk-warning); }
+@media (max-width: 980px) {
+  .main-content { flex-direction: column; }
+  .alerts-section { width: 100%; }
+}
 </style>
