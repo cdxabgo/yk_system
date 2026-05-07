@@ -118,9 +118,10 @@ const handleLogout = async () => {
   --yk-warning: #ffb347;
   --yk-danger: #ff6b6b;
   --yk-success: #52e6a7;
+  --yk-ink: #02121a;
   --yk-text: #e6f0ff;
   --yk-muted: #9fb2c8;
-  --yk-font-display: 'ZCOOL XiaoWei', 'PingFang SC', 'Microsoft YaHei', system-ui, serif;
+  --yk-font-display: 'ZCOOL XiaoWei', 'STSong', 'Songti SC', 'SimSun', serif;
   --yk-font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --yk-shadow: 0 18px 40px rgba(3, 8, 15, 0.45);
 

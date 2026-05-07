@@ -248,7 +248,7 @@ const handleLogin = async () => {
   letter-spacing: 2px;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--yk-accent), var(--yk-accent-strong));
-  color: #02121a;
+  color: var(--yk-ink);
   border: none;
   font-weight: 700;
 }
