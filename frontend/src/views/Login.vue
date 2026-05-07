@@ -210,9 +210,10 @@ const handleLogin = async () => {
   animation: pulse-bounce 1.8s ease-in-out infinite;
 }
 
-.pulse-bar:nth-child(odd) { animation-delay: 0.3s; height: 22px; }
-.pulse-bar:nth-child(2n) { animation-delay: 0.6s; height: 36px; }
-.pulse-bar:nth-child(3n) { animation-delay: 0.9s; height: 28px; }
+.pulse-bar:nth-child(4n + 1) { animation-delay: 0.2s; height: 20px; }
+.pulse-bar:nth-child(4n + 2) { animation-delay: 0.6s; height: 34px; }
+.pulse-bar:nth-child(4n + 3) { animation-delay: 1s; height: 26px; }
+.pulse-bar:nth-child(4n) { animation-delay: 1.4s; height: 40px; }
 
 .login-card {
   background: var(--yk-surface-strong);
