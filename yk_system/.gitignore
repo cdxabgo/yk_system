@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 项目输出
+output/models/*.pkl
+output/logs/*.log
+output/results/*.csv
+
+# 保留目录结构
+!output/models/.gitkeep
+!output/logs/.gitkeep
+!output/results/.gitkeep
+
+# 临时文件
+*.tmp
+*.bak
+*.log
+.DS_Store
+Thumbs.db
+
+# 测试文件
+.pytest_cache/
+.coverage
+htmlcov/
+
+backend/target/
+frontend/node_modules/
+package-lock.json
