@@ -31,5 +31,5 @@ heart-rate:
 
 deepseek:
   api-url: ${DEEPSEEK_API_URL:https://api.deepseek.com/v1}
-  api-key: ${DEEPSEEK_API_KEY}
+  api-key: ${DEEPSEEK_API_KEY:}
   model: ${DEEPSEEK_MODEL:deepseek-reasoner}
