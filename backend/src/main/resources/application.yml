@@ -22,7 +22,7 @@ pagehelper:
   params: count=countSql
 
 jwt:
-  secret: ${JWT_SECRET:yk-system-jwt-secret-key-2024}
+  secret: ${JWT_SECRET:yk-system-jwt-secret-key-2024-minimum-256bits}
   expiration: 86400000
 
 heart-rate:
