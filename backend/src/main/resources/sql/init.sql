@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `employee_disease_relation` (
 -- 初始管理员账户（用户名: admin，密码: admin123，BCrypt加密）
 -- 如需重置密码，调用 AuthService.encodePassword("新密码") 生成密文
 INSERT IGNORE INTO `user` (`username`, `password`, `real_name`)
-VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员');
+VALUES ('admin', '$2b$12$WXbuxI/lw6TTpbtIWwkZaO2iPoMQY82tdvdSUvzTpTHhLYhB0rRGW', '系统管理员');
 
 -- 样本职工数据（用于模拟心率监测演示）
 INSERT IGNORE INTO `employee` (`id`, `name`, `age`, `position`, `working_years`, `phone`) VALUES
