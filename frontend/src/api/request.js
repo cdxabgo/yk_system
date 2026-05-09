@@ -11,7 +11,7 @@ const request = axios.create({
 request.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
   if (token) {
-    config.headers['Authorization'] = token
+    config.headers['Authorization'] = 'Bearer ' + token
   }
   return config
 })
@@ -20,14 +20,14 @@ request.interceptors.request.use(config => {
 request.interceptors.response.use(
   response => {
     const res = response.data
-    if (res.code === 401) {
+    if (Number(res.code) === 401) {
       ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       router.push('/login')
       return Promise.reject(new Error('未登录'))
     }
-    if (res.code !== 200) {
+    if (Number(res.code) !== 200) {
       ElMessage.error(res.message || '操作失败')
       return Promise.reject(new Error(res.message || '操作失败'))
     }

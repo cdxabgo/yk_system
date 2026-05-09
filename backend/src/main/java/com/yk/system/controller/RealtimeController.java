@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -64,7 +65,11 @@ public class RealtimeController {
      * 此接口仅限本机 Python 服务调用，故从 Auth 拦截器中排除
      */
     @PostMapping("/push")
-    public Result<?> push(@RequestBody Map<String, Object> data) {
+    public Result<?> push(@RequestBody Map<String, Object> data, HttpServletRequest request) {
+        String remoteAddr = request.getRemoteAddr();
+        if (!"127.0.0.1".equals(remoteAddr) && !"0:0:0:0:0:0:0:1".equals(remoteAddr)) {
+            return Result.error(403, "仅允许本机服务调用此接口");
+        }
         try {
             String payload = objectMapper.writeValueAsString(data);
             // 广播给所有在线客户端，失败的连接自动移除

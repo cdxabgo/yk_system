@@ -165,7 +165,7 @@ class LGBMAnomalyDetector:
             for batch_id in df['batch_id'].unique():
                 batch_df = df[df['batch_id'] == batch_id]
                 heart_rates = batch_df[heart_rate_column].values
-                labels = batch_df['is_anomaly'].values.astype(int)
+                labels = batch_df['is_abnormal'].values.astype(int)
                 
                 # 提取特征
                 features = self.extract_features(heart_rates)
@@ -174,7 +174,7 @@ class LGBMAnomalyDetector:
                 all_labels.append(labels)
         else:
             heart_rates = df[heart_rate_column].values
-            labels = df['is_anomaly'].values.astype(int)
+            labels = df['is_abnormal'].values.astype(int)
             features = self.extract_features(heart_rates)
             all_features.append(features)
             all_labels.append(labels)
@@ -225,7 +225,7 @@ class LGBMAnomalyDetector:
             valid_sets=[train_data],
             valid_names=['train']
         )
-        print("✓ 模型训练完成")
+        print("[OK] 模型训练完成")
         
     def predict(self, X: np.ndarray, threshold: float = 0.5) -> np.ndarray:
         """
@@ -302,7 +302,7 @@ class LGBMAnomalyDetector:
         
         with open(filepath, 'wb') as f:
             pickle.dump(model_data, f)
-        print(f"✓ 模型已保存到: {filepath}")
+        print(f"[OK] 模型已保存到: {filepath}")
     
     def load_model(self, filepath: str):
         """加载模型"""
@@ -323,7 +323,7 @@ class LGBMAnomalyDetector:
         self.extreme_low = params['extreme_low']
         self.arrhythmia_threshold = params['arrhythmia_threshold']
         
-        print(f"✓ 模型已加载: {filepath}")
+        print(f"[OK] 模型已加载: {filepath}")
 
 
 if __name__ == '__main__':
@@ -340,7 +340,7 @@ if __name__ == '__main__':
     print("\n[1/6] 生成训练数据...")
     generator = HeartRateDataGenerator()
     df_train = generator.generate_mixed_dataset(num_batches=100)
-    print(f"      ✓ 训练数据: {len(df_train)} 条")
+    print(f"      [OK] 训练数据: {len(df_train)} 条")
     
     # 数据滤波
     print("\n[2/6] 数据滤波...")
@@ -350,13 +350,13 @@ if __name__ == '__main__':
         heart_rates = df_train.loc[batch_mask, 'heart_rate'].values
         filtered_rates = filter_obj.comprehensive_filter(heart_rates)
         df_train.loc[batch_mask, 'heart_rate_filtered'] = filtered_rates
-    print("      ✓ 滤波完成")
+    print("      [OK] 滤波完成")
     
     # 使用增强检测器生成标签
     print("\n[3/6] 生成训练标签...")
     rule_detector = EnhancedAnomalyDetector()
     df_train = rule_detector.analyze_dataframe(df_train)
-    print(f"      ✓ 标签生成完成")
+    print(f"      [OK] 标签生成完成")
     print(f"      正常样本: {sum(df_train['is_anomaly'] == False)}")
     print(f"      异常样本: {sum(df_train['is_anomaly'] == True)}")
     
@@ -364,7 +364,7 @@ if __name__ == '__main__':
     print("\n[4/6] 提取特征...")
     detector = LGBMAnomalyDetector(window_size=5)
     X, y = detector.prepare_training_data(df_train)
-    print(f"      ✓ 特征矩阵: {X.shape}")
+    print(f"      [OK] 特征矩阵: {X.shape}")
     print(f"      特征数量: {len(detector.feature_names)}")
     
     # 划分训练集和测试集

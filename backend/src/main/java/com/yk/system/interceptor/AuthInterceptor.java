@@ -24,6 +24,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             throws Exception {
         String token = request.getHeader("Authorization");
         if (token != null) {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
             String username = jwtUtil.getUsernameFromToken(token);
             if (username != null) {
                 request.setAttribute("username", username);

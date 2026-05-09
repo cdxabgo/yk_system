@@ -101,8 +101,8 @@ const loadList = async () => {
       diseaseName: searchForm.diseaseName || undefined,
       diseaseType: searchForm.diseaseType || undefined
     })
-    tableData.value = res.data.list
-    pagination.total = Number(res.data.total)
+    tableData.value = res.data.list || []
+    pagination.total = Number(res.data.total) || 0
   } finally {
     loading.value = false
   }

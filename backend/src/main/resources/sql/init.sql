@@ -7,7 +7,7 @@ USE yk_demo;
 CREATE TABLE IF NOT EXISTS `user` (
     `id`          BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     `username`    VARCHAR(64) NOT NULL UNIQUE                     COMMENT '用户名',
-    `password`    VARCHAR(128) NOT NULL                           COMMENT '密码（MD5或明文）',
+    `password`    VARCHAR(128) NOT NULL                           COMMENT '密码（BCrypt加密）',
     `real_name`   VARCHAR(64)                                     COMMENT '真实姓名',
     `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP           COMMENT '创建时间'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统用户表';
@@ -56,9 +56,10 @@ CREATE TABLE IF NOT EXISTS `employee_disease_relation` (
     INDEX `idx_disease_id`  (`disease_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='职工疾病关联表';
 
--- 初始管理员账户（用户名: admin，密码: admin123，已MD5加密）
+-- 初始管理员账户（用户名: admin，密码: admin123，BCrypt加密）
+-- 如需重置密码，调用 AuthService.encodePassword("新密码") 生成密文
 INSERT IGNORE INTO `user` (`username`, `password`, `real_name`)
-VALUES ('admin', '0192023a7bbd73250516f069df18b500', '系统管理员');
+VALUES ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员');
 
 -- 样本职工数据（用于模拟心率监测演示）
 INSERT IGNORE INTO `employee` (`id`, `name`, `age`, `position`, `working_years`, `phone`) VALUES

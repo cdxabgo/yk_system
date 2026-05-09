@@ -14,8 +14,7 @@
 yk_system/
 ├── backend/             # Java 后端（8081）
 ├── frontend/            # Vue 前端（3000）
-├── heart_rate_model/    # Python 服务（5000）
-└── Java调用示例/         # Java 调用示例
+└── heart_rate_model/    # Python 服务（5000）
 ```
 
 ---
@@ -32,7 +31,7 @@ yk_system/
 
 ## 3. 环境要求
 
-- **Java 21**（backend `pom.xml` 目标版本）
+- **Java 17**（backend `pom.xml` 目标版本）
 - **Node.js 18+**
 - **Python 3.9+**
 - **MySQL 8+**（默认库名：`yk_demo`）
@@ -43,8 +42,17 @@ yk_system/
 
 ### 4.1 启动 Java 后端
 
+> 启动前需设置环境变量：`DB_PASSWORD`、`JWT_SECRET`、`DEEPSEEK_API_KEY`（可选）
+
 ```bash
 cd backend
+# Windows
+set DB_PASSWORD=your_db_password
+set JWT_SECRET=your_jwt_secret_256bit
+# Linux/Mac
+export DB_PASSWORD=your_db_password
+export JWT_SECRET=your_jwt_secret_256bit
+
 mvn spring-boot:run
 ```
 

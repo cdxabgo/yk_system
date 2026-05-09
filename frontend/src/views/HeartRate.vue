@@ -142,8 +142,8 @@ const loadList = async () => {
     if (searchForm.endTime) params.endTime = searchForm.endTime
 
     const res = await heartRateApi.list(params)
-    tableData.value = res.data.list
-    pagination.total = Number(res.data.total)
+    tableData.value = res.data.list || []
+    pagination.total = Number(res.data.total) || 0
   } finally {
     loading.value = false
   }

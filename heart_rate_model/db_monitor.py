@@ -1,5 +1,5 @@
-# MQTT数据接收和处理模块
-# 通过MQTT订阅实时心率数据并进行异常检测
+# 数据库轮询监测模块
+# 定时从MySQL读取心率数据并进行异常检测
 
 
 import time
@@ -124,18 +124,9 @@ class MQTTHeartRateMonitor:
 
             self.total_received += 1
             self.records_since_last_continuous[user_id] = self.records_since_last_continuous.get(user_id, 0) + 1
-            print(f"\n📊 读取数据库数据 [用户{user_id}] 时间: {data_time} 心率: {heart_rate} bpm")
+            print(f"\n[数据] 用户{user_id} 时间: {data_time} 心率: {heart_rate} bpm")
 
-            if self.data_callback:
-                self.data_callback({
-                    'user_id': user_id,
-                    'heart_rate': heart_rate,
-                    'data_time': data_time,
-                    'filtered_data': [{'heart_rate': heart_rate, 'time': data_time}],
-                    'ml_anomalies': [],
-                    'rule_anomalies': {}
-                })
-
+            # 先检测，再推送（analyze_user_data 内部通过 data_callback 推送结果）
             self.analyze_user_data(user_id)
         except Exception as e:
             print(f"❌ 数据库记录处理错误: {e}")
@@ -294,9 +285,23 @@ class MQTTHeartRateMonitor:
                     self.db_manager.update_daily_anomaly_count(user_id, 'continuous')
                 
                 self.total_anomalies += len(all_anomaly_indices)
-                print(f"✅ 异常记录已保存到数据库")
+                print(f"[OK] 异常记录已保存到数据库")
             else:
-                print(f"\n✅ 未发现连续异常")
+                print(f"\n[OK] 未发现连续异常")
+
+            # 推送检测结果到 Java 后端
+            if self.data_callback:
+                latest_hr = float(cleaned_rates[-1]) if len(cleaned_rates) > 0 else 0.0
+                latest_time = str(time_list[-1]) if len(time_list) > 0 else ''
+                filtered = [{'heart_rate': float(hr), 'time': str(t)}
+                           for hr, t in zip(cleaned_rates, time_list)]
+                ml_ab = [f'AI-连续异常(idx={i})' for i in ml_indices] if ml_indices else []
+                rule_res = {k: list(v) for k, v in rule_anomalies.items() if v and k != 'all'}
+                self.data_callback({
+                    'user_id': user_id, 'heart_rate': latest_hr,
+                    'data_time': latest_time, 'filtered_data': filtered,
+                    'ml_anomalies': ml_ab, 'rule_anomalies': rule_res
+                })
             
             print(f"\n{'='*80}")
             print(f"✅ 连续异常检测完成")
@@ -446,130 +451,6 @@ class MQTTHeartRateMonitor:
         else:
             return 'low'
 
-    
-    def print_alert(self, user_id, index, current_rate, window_data, time_str, 
-                   rule_anomalies, confidence):
-        """
-        打印异常报警信息（原程序格式）
-        
-        Args:
-            user_id: 用户ID
-            index: 异常索引
-            current_rate: 当前心率
-            window_data: 窗口数据
-            time_str: 时间字符串
-            rule_anomalies: 规则检测结果
-            confidence: 置信度
-        """
-        # 确定异常类型
-        anomaly_types = []
-        if index in rule_anomalies.get('high_rate', []):
-            anomaly_types.append('心率过快')
-        if index in rule_anomalies.get('low_rate', []):
-            anomaly_types.append('心率过慢')
-        if index in rule_anomalies.get('extreme_value', []):
-            anomaly_types.append('心率极值')
-        if index in rule_anomalies.get('arrhythmia', []):
-            anomaly_types.append('心律不齐')
-        
-        # 如果规则未检测到，根据心率值自动判断
-        if len(anomaly_types) == 0:
-            anomaly_types = self._classify_anomaly(window_data, index, current_rate)
-        
-        # 确定报警级别
-        if '心率极值' in anomaly_types:
-            symbol = '🚨🚨🚨'
-            level = '【危险】'
-        elif '心率过快' in anomaly_types or '心律不齐' in anomaly_types:
-            symbol = '⚠️⚠️'
-            level = '【警告】'
-        else:
-            symbol = '⚠️'
-            level = '【注意】'
-        
-        print("\n" + symbol + " " * 3 + level + " 异常报警 " + symbol)
-        print("=" * 80)
-        print(f"报警时间: {time_str}")
-        print(f"用户ID:   {user_id}")
-        print(f"数据点:   #{index}")
-        print(f"当前心率: {current_rate:.1f} 次/分钟")
-        print(f"异常类型: {', '.join(anomaly_types)}")
-        print(f"置信度:   {confidence:.2%}")
-        print(f"窗口数据 (共{len(window_data)}条):")
-        print(f"  {' → '.join([f'{r:.1f}' for r in window_data])}")
-        
-        # 详细说明
-        print(f"\n异常详情:")
-        if '心率过快' in anomaly_types:
-            high_count = len([r for r in window_data if r > 150])
-            print(f"  • 心率持续超过150次/分钟，已连续{high_count}条")
-        if '心率过慢' in anomaly_types:
-            low_count = len([r for r in window_data if r < 60])
-            print(f"  • 心率持续低于60次/分钟，已连续{low_count}条")
-        if '心率极值' in anomaly_types:
-            if current_rate >= 200:
-                print(f"  • 心率达到极高值 {current_rate:.1f} ≥ 200 次/分钟！")
-            else:
-                print(f"  • 心率达到极低值 {current_rate:.1f} ≤ 30 次/分钟！")
-        if '心律不齐' in anomaly_types:
-            if len(window_data) > 1:
-                max_diff = max(abs(window_data[i] - window_data[i-1]) 
-                              for i in range(1, len(window_data)))
-                print(f"  • 心率变化剧烈，最大相邻差值 {max_diff:.1f} 次/分钟")
-                if index > 0:
-                    current_diff = abs(window_data[index] - window_data[index-1])
-                    print(f"  • 当前点相邻差值: {current_diff:.1f} 次/分钟")
-        
-        print(f"\n累计异常: {self.total_anomalies + 1} 次")
-        print("=" * 80)
-    
-    def _classify_anomaly(self, window_data, index, current_rate):
-        """
-        根据特征自动分类AI检测到的异常
-        
-        Args:
-            window_data: 窗口数据
-            index: 当前索引
-            current_rate: 当前心率
-            
-        Returns:
-            异常类型列表
-        """
-        anomaly_types = []
-        
-        # 1. 检查是否接近极值
-        if current_rate >= 180 or current_rate <= 40:
-            anomaly_types.append('心率极值')
-        
-        # 2. 检查是否接近高心率阈值
-        elif current_rate > 140:
-            high_count = sum(1 for r in window_data[max(0, index-5):index+1] if r > 140)
-            if high_count >= 2:
-                anomaly_types.append('心率过快')
-        
-        # 3. 检查是否接近低心率阈值
-        elif current_rate < 65:
-            low_count = sum(1 for r in window_data[max(0, index-5):index+1] if r < 65)
-            if low_count >= 2:
-                anomaly_types.append('心率过慢')
-        
-        # 4. 检查心率变化是否剧烈
-        if index > 0:
-            diff = abs(window_data[index] - window_data[index-1])
-            if diff >= 25:
-                if '心率过快' not in anomaly_types and '心率过慢' not in anomaly_types:
-                    anomaly_types.append('心律不齐')
-        
-        # 5. 检查趋势
-        if len(anomaly_types) == 0 and index >= 2:
-            recent_rates = window_data[max(0, index-2):index+1]
-            if len(recent_rates) >= 3:
-                if recent_rates[-1] > recent_rates[0] + 40:
-                    anomaly_types.append('心律不齐')
-                elif recent_rates[0] > recent_rates[-1] + 40:
-                    anomaly_types.append('心律不齐')
-        
-        return anomaly_types
     
     def start(self):
         """启动数据库轮询监听"""

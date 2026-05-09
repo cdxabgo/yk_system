@@ -19,14 +19,8 @@ env/
 *~
 
 # 项目输出
-output/models/*.pkl
-output/logs/*.log
-output/results/*.csv
-
-# 保留目录结构
-!output/models/.gitkeep
-!output/logs/.gitkeep
-!output/results/.gitkeep
+heart_rate_model/output/
+heart_rate_model/mitbih_data/
 
 # 临时文件
 *.tmp

@@ -56,7 +56,7 @@ class SystemChecker:
         
         required_files = [
             'rest_api.py',
-            'mqtt_handler.py',
+            'db_monitor.py',
             'config.py',
             'data_filter.py',
             'enhanced_detector.py',
@@ -264,48 +264,45 @@ def show_help():
     - data_filter.py         数据滤波器
     - enhanced_detector.py   规则检测器
     - lgbm_model.py          机器学习模型
-    - mqtt_handler.py        MQTT处理器
-    - integrated_system.py   集成系统
+    - db_monitor.py          数据库轮询监测
+    - integrated_system.py   集成系统(训练+模拟)
     - rest_api.py            REST API服务
+    - database.py            数据库操作
+    - redis_storage.py       Redis存储
     - main.py                主程序入口
     - utils.py               工具模块
 
-  辅助文件:
-    - mqtt_sender.py         MQTT数据发送器
-    - requirements.txt       依赖清单
+  扩展模块:
+    - lstm_detector.py            LSTM自编码器检测器
+    - isolation_forest_detector.py 隔离森林检测器
+    - mitbih_loader.py            MIT-BIH数据加载器
+    - model_comparison.py         模型对比评估
 
 【配置文件】
 
   config.py 包含:
-    - MQTT_CONFIG: MQTT服务器配置
+    - MQTT_CONFIG: MQTT连接参数
     - MODEL_CONFIG: 模型参数配置
     - FILTER_CONFIG: 滤波器配置
-    - RULE_CONFIG: 异常检测规则
+    - DETECTOR_CONFIG: 异常检测规则
+    - TRAIN_CONFIG: 训练参数
+    - MONITOR_CONFIG: 监测参数
+    - DATABASE_CONFIG: 数据库配置
+    - REDIS_CONFIG: Redis配置
 
 【常见问题】
 
   Q: 如何训练模型?
   A: python main.py → 选择选项1
 
-  Q: 如何启动MQTT监测?
+  Q: 如何启动数据库监测?
   A: python main.py → 选择选项4
 
   Q: 如何启动API服务?
-  A: python main.py → 选择选项7
-     或 python rest_api.py
+  A: python main.py → 选择选项5 或 python rest_api.py
 
   Q: 缺少依赖包?
   A: pip install -r requirements.txt
-
-  Q: 模型文件不存在?
-  A: 先训练模型或使用规则检测模式
-
-【技术支持】
-
-  详细文档: README.md
-  API文档: REST_API使用说明.md
-  MQTT文档: MQTT使用说明.md
-  项目结构: PROJECT_STRUCTURE.md
 
 ╚════════════════════════════════════════════════════════════════════════════╝
 """

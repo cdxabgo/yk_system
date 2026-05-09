@@ -13,20 +13,18 @@ def show_menu():
     print("="*80)
     print("\n请选择运行模式:")
     print("\n【模拟数据模式】")
-    print("  1. 训练模型 - 生成模拟数据并训练LightGBM模型")
+    print("  1. 训练模型 - 生成模拟数据并训练模型")
     print("  2. 实时监测 - 模拟数据实时监测演示")
     print("  3. 完整流程 - 训练 + 监测一体化")
-    print("\n【数据库轮询模式】🔥")
+    print("\n【数据库轮询模式】")
     print("  4. 数据库监测 - 定时从数据库读取心率并分析")
-    print("  5. MQTT发送（已停用）")
-    print("  6. MQTT演示（已停用）")
-    print("\n【REST API服务】🆕")
-    print("  7. 启动API服务 - 提供HTTP接口供Java等程序调用")
-    print("  8. 测试API - 测试API接口功能")
-    print("\n【系统管理】⚙️")
+    print("\n【REST API服务】")
+    print("  5. 启动API服务 - 提供HTTP接口供外部程序调用")
+    print("  6. 测试API - 测试API接口功能")
+    print("\n【系统管理】")
     print("  D. 初始化数据库 - 创建数据库表结构")
     print("  R. 测试Redis连接")
-    print("  9. 查看使用说明")
+    print("  H. 查看使用说明")
     print("  0. 退出")
     print("="*80)
 
@@ -68,7 +66,7 @@ def run_monitor():
         else:
             print("将仅使用规则检测")
     else:
-        system.ml_detector.load_model("output/models/lgbm_model.pkl")
+        system.load_model()
     
     system.real_time_monitor(interval=interval)
 
@@ -100,7 +98,7 @@ def run_complete():
 
 def run_mqtt_monitor():
     """数据库轮询监测（保留函数名兼容旧菜单）"""
-    from mqtt_handler import MQTTHeartRateMonitor
+    from db_monitor import MQTTHeartRateMonitor
     
     print("\n" + "="*80)
     print("🗄️ 数据库轮询监测模式（v2.0）")
@@ -132,16 +130,6 @@ def run_mqtt_monitor():
         monitor.stop()
 
 
-def run_mqtt_sender():
-    """MQTT发送（已停用）"""
-    print("\n⚠️ MQTT模式已停用，请直接向数据库 employee_heart_rate 写入测试数据。")
-
-
-def run_mqtt_demo():
-    """MQTT演示（已停用）"""
-    print("\n⚠️ MQTT模式已停用。请使用选项 4（数据库监测）并向数据库写入测试数据。")
-
-
 def show_help():
     """显示使用说明"""
     from utils import show_help
@@ -158,7 +146,7 @@ def run_api_server():
     print("\n💡 提示:")
     print("  - 服务地址: http://localhost:5000")
     print("  - API文档: http://localhost:5000/api/health")
-    print("  - Java示例: 查看 Java调用示例/")
+    print("  - API文档: http://localhost:5000/api/health")
     print("  - 按 Ctrl+C 停止服务")
     print("\n" + "="*80 + "\n")
     
@@ -237,8 +225,8 @@ def main():
     """主函数"""
     while True:
         show_menu()
-        choice = input("\n请输入选项 (0-9/D/R): ").strip().upper()
-        
+        choice = input("\n请输入选项 (0-6/D/R/H): ").strip().upper()
+
         try:
             if choice == '1':
                 run_train()
@@ -249,18 +237,14 @@ def main():
             elif choice == '4':
                 run_mqtt_monitor()
             elif choice == '5':
-                run_mqtt_sender()
-            elif choice == '6':
-                run_mqtt_demo()
-            elif choice == '7':
                 run_api_server()
-            elif choice == '8':
+            elif choice == '6':
                 run_api_test()
             elif choice == 'D':
                 init_database()
             elif choice == 'R':
                 test_redis()
-            elif choice == '9':
+            elif choice == 'H':
                 show_help()
             elif choice == '0':
                 print("\n👋 感谢使用！再见！\n")

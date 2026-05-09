@@ -11,7 +11,7 @@ import json
 import os
 import urllib.request
 from datetime import datetime
-from mqtt_handler import MQTTHeartRateMonitor
+from db_monitor import MQTTHeartRateMonitor
 from typing import Dict
 
 app = Flask(__name__)

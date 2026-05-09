@@ -85,7 +85,7 @@ async function loadData() {
   loading.value = true
   try {
     const res = await heartRateApi.monitor({ page: 1, size: 100 })
-    cards.value = res.data.list
+    cards.value = res.data.list || []
   } finally {
     loading.value = false
   }

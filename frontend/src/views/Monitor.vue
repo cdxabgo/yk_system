@@ -111,8 +111,8 @@ const loadList = async () => {
     if (searchForm.job) params.job = searchForm.job
     if (searchForm.isAbnormal !== null && searchForm.isAbnormal !== '') params.isAbnormal = searchForm.isAbnormal
     const res = await heartRateApi.monitor(params)
-    tableData.value = res.data.list
-    pagination.total = Number(res.data.total)
+    tableData.value = res.data.list || []
+    pagination.total = Number(res.data.total) || 0
   } finally {
     loading.value = false
   }

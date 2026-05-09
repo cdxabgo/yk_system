@@ -4,11 +4,9 @@ import com.yk.system.common.JwtUtil;
 import com.yk.system.entity.SysUser;
 import com.yk.system.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,12 +19,14 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     /**
      * 登录验证，成功则返回包含 JWT token 的数据，失败返回 null
      */
     public Map<String, Object> login(String username, String password) {
         SysUser user = sysUserMapper.findByUsername(username);
-        if (user == null || !matchesPassword(password, user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             return null;
         }
         String token = jwtUtil.generateToken(username);
@@ -37,25 +37,11 @@ public class AuthService {
         return data;
     }
 
-    private boolean matchesPassword(String rawPassword, String storedPassword) {
-        if (rawPassword == null || storedPassword == null) {
-            return false;
-        }
-        return md5(rawPassword).equalsIgnoreCase(storedPassword) || rawPassword.equals(storedPassword);
-    }
-
-    private String md5(String text) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(text.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("MD5算法不可用", e);
-        }
+    /**
+     * 使用 BCrypt 对密码进行哈希（用于初始化/重置密码时生成密文）
+     */
+    public String encodePassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
     }
 
     /**
@@ -65,4 +51,3 @@ public class AuthService {
         // JWT 为无状态认证，登出由客户端清除 token 实现
     }
 }
-

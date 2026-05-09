@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/yk_demo?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: 123456
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 mybatis:
@@ -13,7 +13,7 @@ mybatis:
   type-aliases-package: com.yk.system.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 生产环境请注释此行
 
 pagehelper:
   helper-dialect: mysql
@@ -22,7 +22,7 @@ pagehelper:
   params: count=countSql
 
 jwt:
-  secret: ${JWT_SECRET:yk-system-jwt-secret-key-2024-must-be-at-least-256-bits-long}
+  secret: ${JWT_SECRET}
   expiration: 86400000
 
 heart-rate:
@@ -31,5 +31,5 @@ heart-rate:
 
 deepseek:
   api-url: ${DEEPSEEK_API_URL:https://api.deepseek.com/v1}
-  api-key: ${DEEPSEEK_API_KEY:sk-b3878557eeff49d7bdbb510bde3aa863}
+  api-key: ${DEEPSEEK_API_KEY}
   model: ${DEEPSEEK_MODEL:deepseek-reasoner}

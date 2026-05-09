@@ -11,37 +11,41 @@ from data_generator import HeartRateDataGenerator
 from data_filter import HeartRateFilter
 from enhanced_detector import EnhancedAnomalyDetector
 from lgbm_model import LGBMAnomalyDetector
+from isolation_forest_detector import IForestDetector
 import warnings
 warnings.filterwarnings('ignore')
 
+try:
+    from lstm_detector import LSTMAutoencoderDetector, HAS_TF
+except ImportError:
+    HAS_TF = False
+    LSTMAutoencoderDetector = None
+
 
 class IntegratedHeartRateMonitor:
-    """井下心率监测一体化系统"""
-    
+    """井下心率监测一体化系统（三模型融合版）"""
+
     def __init__(self):
         """初始化系统"""
         self.generator = HeartRateDataGenerator()
         self.filter = HeartRateFilter()
         self.rule_detector = EnhancedAnomalyDetector()
-        self.ml_detector = LGBMAnomalyDetector()
-        
-        # 检测规则
+        self.lgbm_detector = LGBMAnomalyDetector()
+        self.iforest_detector = IForestDetector(contamination=0.1, window_size=10)
+        self.lstm_detector = None
+
         self.rules = {
             '心率过快': '持续超过150次/分钟 且连续3条以上',
             '心率过慢': '持续低于60次/分钟 且连续2条以上',
-            '心率极值': '≥200次/分钟 或 ≤30次/分钟（即刻报警）',
-            '心律不齐': '相邻数据差值 ≥30次/分钟'
+            '心率极值': '>=200次/分钟 或 <=30次/分钟(即刻报警)',
+            '心律不齐': '相邻数据差值 >=30次/分钟'
         }
-        
+
         self.batch_count = 0
         self.total_anomalies = 0
         self.start_time = None
-        
-        # 历史数据缓存（用于滑动窗口）
-        self.history_data = []  # 存储历史清洗后的心率数据
-        
-        # 监测数据记录（用于保存）
-        self.monitoring_records = []  # 存储所有监测数据
+        self.history_data = []
+        self.monitoring_records = []
     
     def print_header(self):
         """打印系统头部"""
@@ -87,92 +91,104 @@ class IntegratedHeartRateMonitor:
             df_train.loc[batch_mask, 'heart_rate_filtered'] = filtered_rates
         print("      ✓ 清洗完成")
         
-        # 3. 生成训练标签（使用规则检测器）
-        print("\n[3/5] 生成训练标签...")
-        df_train = self.rule_detector.analyze_dataframe(df_train)
-        normal_count = sum(df_train['is_anomaly'] == False)
-        anomaly_count = sum(df_train['is_anomaly'] == True)
-        print(f"      ✓ 标签生成完成")
-        print(f"      正常样本: {normal_count} ({normal_count/len(df_train)*100:.1f}%)")
-        print(f"      异常样本: {anomaly_count} ({anomaly_count/len(df_train)*100:.1f}%)")
-        
-        # 4. 训练模型
-        print("\n[4/5] 训练LightGBM模型...")
-        X, y = self.ml_detector.prepare_training_data(df_train)
-        print(f"      特征矩阵: {X.shape}")
-        print(f"      特征维度: {len(self.ml_detector.feature_names)}")
-        self.ml_detector.train(X, y, num_boost_round=100)
-        
+        # 3. 使用生成器自带标签（不再用规则标注）
+        print("\n[3/5] 使用生成器逐点标签...")
+        normal_count = int((df_train['is_abnormal'] == 0).sum())
+        anomaly_count = int((df_train['is_abnormal'] == 1).sum())
+        print(f"      正常: {normal_count} ({normal_count/len(df_train)*100:.1f}%)")
+        print(f"      异常: {anomaly_count} ({anomaly_count/len(df_train)*100:.1f}%)")
+
+        # 4. 训练 LightGBM
+        print("\n[4/5] 训练 LightGBM...")
+        X, y = self.lgbm_detector.prepare_training_data(df_train)
+        print(f"      特征矩阵: {X.shape}, 维度: {len(self.lgbm_detector.feature_names)}")
+        self.lgbm_detector.train(X, y, num_boost_round=100)
+
         # 5. 保存模型
         print("\n[5/5] 保存模型...")
         os.makedirs('output/models', exist_ok=True)
-        self.ml_detector.save_model('output/models/lgbm_model.pkl')
-        
+        self.lgbm_detector.save_model('output/models/lgbm_model.pkl')
+        # 同时训练 IForest (无监督，用全部数据)
+        self.iforest_detector.fit(df_train['heart_rate_filtered'].values)
+        self.iforest_detector.save('output/models/isolation_forest.pkl')
+        # LSTM-AE (只用正常数据)
+        if HAS_TF:
+            normal_batches = [df_train[df_train['batch_id']==bid]['heart_rate_filtered'].values
+                for bid in df_train['batch_id'].unique()
+                if df_train[df_train['batch_id']==bid]['is_abnormal'].sum()==0]
+            self.lstm_detector = LSTMAutoencoderDetector(sequence_length=15, latent_dim=8)
+            self.lstm_detector.fit(normal_batches, epochs=30, verbose=0)
+            self.lstm_detector.save('output/models/lstm_ae.pkl')
+
         print("\n" + "=" * 80)
-        print("✓ 模型训练完成！")
+        print("[OK] 模型训练完成!")
         print("=" * 80)
     
     def load_model(self):
-        """加载训练好的模型"""
+        """加载所有模型"""
+        loaded = 0
         try:
-            self.ml_detector.load_model('output/models/lgbm_model.pkl')
-            return True
-        except FileNotFoundError:
-            return False
-    
+            self.lgbm_detector.load_model('output/models/lgbm_model.pkl')
+            loaded += 1
+        except Exception: pass
+        try:
+            self.iforest_detector = IForestDetector.load('output/models/isolation_forest.pkl')
+            loaded += 1
+        except Exception: pass
+        if HAS_TF:
+            try:
+                self.lstm_detector = LSTMAutoencoderDetector.load('output/models/lstm_ae.pkl')
+                loaded += 1
+            except Exception: pass
+        return loaded > 0
+
     def detect_and_alert(self, window_data, batch_id):
-        """
-        检测异常并报警（基于滑动窗口数据）
-        AI模型+规则双重检测,自动归类异常类型
-        
-        参数:
-            window_data: 滑动窗口数据（30条）
-            batch_id: 批次ID
-        """
-        # 1. AI模型预测
-        features = self.ml_detector.extract_features(window_data)
-        current_batch_start = max(0, len(window_data) - 18)
-        predictions = self.ml_detector.predict(features[current_batch_start:])
-        probabilities = self.ml_detector.predict_proba(features[current_batch_start:])
-        
-        # 2. 规则检测
+        """三模型投票融合检测"""
+        if len(window_data) < 5:
+            return
+
+        # LightGBM
+        lgbm_p = np.zeros(len(window_data), dtype=int)
+        lgbm_s = np.zeros(len(window_data))
+        if self.lgbm_detector.model:
+            try:
+                f = self.lgbm_detector.extract_features(window_data)
+                lgbm_p = self.lgbm_detector.predict(f)
+                lgbm_s = self.lgbm_detector.predict_proba(f)
+            except Exception: pass
+
+        # IForest
+        if_p = self.iforest_detector.predict(window_data)
+        if_s = self.iforest_detector.score(window_data)
+
+        # LSTM-AE
+        lstm_p = np.zeros(len(window_data), dtype=int)
+        lstm_s = np.zeros(len(window_data))
+        if self.lstm_detector:
+            try:
+                lstm_p = self.lstm_detector.predict(window_data)
+                lstm_s = self.lstm_detector.score(window_data)
+            except Exception: pass
+
+        # 规则检测
         results = self.rule_detector.detect_all(window_data)
-        
-        # 3. 合并AI和规则检测结果
-        anomaly_indices = set(np.where(predictions == 1)[0])  # AI检测的索引
-        
-        for local_idx in anomaly_indices:
-            window_idx = current_batch_start + local_idx
-            
-            # 确定异常类型（优先使用规则检测结果）
-            anomaly_types = []
-            if window_idx in results['high_rate']:
-                anomaly_types.append('心率过快')
-            if window_idx in results['low_rate']:
-                anomaly_types.append('心率过慢')
-            if window_idx in results['extreme_value']:
-                anomaly_types.append('心率极值')
-            if window_idx in results['arrhythmia']:
-                anomaly_types.append('心律不齐')
-            
-            # 如果规则未检测到,根据心率值和特征自动判断类型
-            if len(anomaly_types) == 0:
-                current_rate = window_data[window_idx]
-                anomaly_types = self._classify_anomaly(window_data, window_idx, current_rate)
-            
-            # 只有确定了类型才报警
-            if len(anomaly_types) > 0:
+
+        for i in range(len(window_data)):
+            if lgbm_p[i] + if_p[i] + lstm_p[i] < 2:
+                continue  # >=2 票才报警
+
+            types = []
+            if i in results.get('high_rate', []):    types.append('心率过快')
+            if i in results.get('low_rate', []):      types.append('心率过慢')
+            if i in results.get('extreme_value', []): types.append('心率极值')
+            if i in results.get('arrhythmia', []):    types.append('心律不齐')
+            if not types:
+                types = self._classify_anomaly(window_data, i, window_data[i])
+
+            if types:
                 self.total_anomalies += 1
-                
-                # 打印报警信息
-                self.print_alert(
-                    batch_id=batch_id,
-                    index=window_idx,
-                    current_rate=window_data[window_idx],
-                    window_data=window_data,
-                    anomaly_types=anomaly_types,
-                    confidence=probabilities[local_idx]
-                )
+                self.print_alert(batch_id, i, window_data[i], window_data, types,
+                                 (lgbm_s[i] + if_s[i] + lstm_s[i]) / 3.0)
     
     def _classify_anomaly(self, window_data, index, current_rate):
         """
@@ -404,78 +420,3 @@ class IntegratedHeartRateMonitor:
             print(f"异常率:   {anomaly_rate:.2f}%")
         print("=" * 80)
         print("\n✓ 系统已停止，感谢使用！\n")
-
-
-def main():
-    """主函数"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='井下心率监测一体化系统')
-    parser.add_argument('--train', action='store_true', 
-                       help='训练模型模式')
-    parser.add_argument('--train-batches', type=int, default=200,
-                       help='训练批次数，默认200')
-    parser.add_argument('--monitor', action='store_true',
-                       help='实时监测模式')
-    parser.add_argument('--interval', type=int, default=10,
-                       help='监测间隔（秒），默认10秒')
-    
-    args = parser.parse_args()
-    
-    # 创建系统
-    system = IntegratedHeartRateMonitor()
-    system.print_header()
-    
-    if args.train:
-        # 训练模式
-        system.train_model(num_batches=args.train_batches)
-        
-    elif args.monitor:
-        # 实时监测模式
-        if not system.load_model():
-            print("❌ 错误: 模型文件不存在")
-            print("   请先运行: python integrated_system.py --train")
-            return
-        
-        system.real_time_monitor(interval=args.interval)
-        
-    else:
-        # 默认：完整流程演示
-        print("🎯 [完整流程演示模式]")
-        print("\n请选择操作:")
-        print("  1. 训练模型")
-        print("  2. 实时监测")
-        print("  3. 完整流程（训练+监测）")
-        
-        choice = input("\n请输入选项 (1/2/3): ").strip()
-        
-        if choice == '1':
-            system.train_model(num_batches=100)
-            
-        elif choice == '2':
-            if not system.load_model():
-                print("\n❌ 模型文件不存在，开始训练...")
-                system.train_model(num_batches=100)
-            
-            input("\n按 Enter 键开始实时监测...")
-            system.real_time_monitor(interval=10)
-            
-        elif choice == '3':
-            # 完整流程
-            print("\n" + "=" * 80)
-            print("Step 1: 模型训练")
-            print("=" * 80)
-            system.train_model(num_batches=50)
-            
-            input("\n✓ 训练完成！按 Enter 键开始实时监测...")
-            
-            print("\n" + "=" * 80)
-            print("Step 2: 实时监测")
-            print("=" * 80)
-            system.real_time_monitor(interval=10)
-        else:
-            print("无效选项")
-
-
-if __name__ == '__main__':
-    main()

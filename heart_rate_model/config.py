@@ -1,28 +1,14 @@
 # 井下实时心率监测系统 - 统一配置文件
 # 修改此文件以调整系统参数
 
-# ==================== MQTT配置 ====================
+# ==================== MQTT配置（保留，兼容旧版） ====================
 MQTT_CONFIG = {
-    # MQTT服务器地址和端口
-    'broker': 'broker.emqx.io',  # 使用公共MQTT测试服务器
+    'broker': 'broker.emqx.io',
     'port': 1883,
-    
-    # 认证信息（如果需要）
-    'username': None,  # 例如: 'admin'
-    'password': None,  # 例如: 'password123'
-    
-    # 订阅主题
-    'topics': {
-        'realtime': '/bdohs/data/#',      # 实时数据主题
-        'history': '/bdohs/datalist/#',   # 历史数据主题
-        'status': '$SYS/brokers/+/clients/+/connected',      # 客户端上线主题
-        'disconnect': '$SYS/brokers/+/clients/+/disconnected'  # 客户端离线主题
-    },
-    
-    # 数据参数
-    'batch_size': 18,      # 每批数据量（3分钟/10秒 = 18条）
-    'keepalive': 60,       # 保持连接时间（秒）
-    'clean_session': True  # 是否清除会话
+    'username': None,
+    'password': None,
+    'batch_size': 18,
+    'keepalive': 60,
 }
 
 # ==================== 模型配置 ====================
@@ -67,20 +53,6 @@ DETECTOR_CONFIG = {
     
     # 心律不齐检测
     'arrhythmia_threshold': 30  # 相邻差值阈值（次/分钟）
-}
-
-# ==================== 数据生成配置 ====================
-GENERATOR_CONFIG = {
-    # 基础参数
-    'batch_size': 18,           # 每批数据量
-    'sampling_interval': 10,    # 采样间隔（秒）
-    'base_heart_rate': 75,      # 基础心率（次/分钟）
-    
-    # 异常概率
-    'anomaly_prob': 0.15,  # 异常数据概率（15%）
-    
-    # 环境因素模拟
-    'simulate_environment': True  # 是否模拟井下环境
 }
 
 # ==================== 日志配置 ====================
